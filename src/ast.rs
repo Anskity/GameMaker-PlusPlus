@@ -7,6 +7,7 @@ pub enum Node {
     String(String),
     UnparsedToken(Box<crate::tokenizer::Token>),
     BinaryOperator(char),
+    ArrayAccess(Box<Node>, Box<Node>),
 }
 
 impl Node {

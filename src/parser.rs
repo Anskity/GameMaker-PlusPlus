@@ -1,4 +1,5 @@
 use crate::ast::Node;
+use crate::code_container::CodeContainerManager;
 use crate::tokenizer::Token;
 use std::ops::RangeInclusive;
 
@@ -41,23 +42,20 @@ fn parse_expr_components(
 ) -> (Vec<RangeInclusive<usize>>, Vec<usize>) {
     let mut ranges = Vec::<RangeInclusive<usize>>::new();
     let mut oprts_idx = Vec::<usize>::new();
-    let mut parenthesis_index = 0 as i16;
+    let mut container_manager = CodeContainerManager::new(true, true, true);
     let mut last_ptr = 0 as isize;
 
     for (ptr, tk) in tokens.iter().enumerate() {
         let iptr = ptr as isize;
-        match tk {
-            Token::OpenParenthesis => parenthesis_index += 1,
-            Token::CloseParenthesis => parenthesis_index -= 1,
-            Token::BinaryOperator(chr) => {
-                if parenthesis_index == 0 && (search_operators.contains(chr)) {
-                    let new_range = (last_ptr as usize)..=((iptr - 1) as usize);
-                    ranges.push(new_range);
-                    oprts_idx.push(iptr.clone() as usize);
-                    last_ptr = iptr + 1;
-                }
+        container_manager.check(tk);
+
+        if let Token::BinaryOperator(chr) = *tk {
+            if container_manager.is_free() && (search_operators.contains(&chr)) {
+                let new_range = (last_ptr as usize)..=((iptr - 1) as usize);
+                ranges.push(new_range);
+                oprts_idx.push(iptr.clone() as usize);
+                last_ptr = iptr + 1;
             }
-            _ => {}
         }
         if ptr == tokens.len() - 1 {
             let right: usize = ptr + 0;
@@ -78,6 +76,12 @@ fn parse_component(component: &Vec<Token>) -> Node {
     if let Token::OpenParenthesis = first.unwrap() {
         if let Token::CloseParenthesis = last.unwrap() {
             return parse_expr(&component[1..(component.len() - 1)].to_vec());
+        }
+    }
+
+    if let Token::OpenBracket = component.get(1).unwrap() {
+        if let Token::CloseBracket = last.unwrap() {
+            return parse_array_access(&component[0..component.len()].to_vec());
         }
     }
 
@@ -120,4 +124,24 @@ fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Vec<ch
             ptr += 1;
         }
     }
+}
+
+fn parse_array_access(tokens: &Vec<Token>) -> Node {
+    let identifier: Node = match tokens.first().unwrap() {
+        Token::Identifier(id) => Node::Identifier(id.clone()),
+        _ => panic!("FIRST TOKEN WHEN PARSING ARRAY ACCESS ISNT AN IDENTIFIER"),
+    };
+
+    match tokens.get(1).unwrap() {
+        Token::OpenBracket => {}
+        _ => panic!("SECOND TOKEN WHEN PARSING ARRAY ACCESS ISNT AN OPEN BRACKET"),
+    }
+    match tokens.last().unwrap() {
+        Token::CloseBracket => {}
+        _ => panic!("LAST TOKEN WHEN PARSING ARRAY ACCESS ISNT AN ENDING BRACKET"),
+    }
+
+    let array_idx = parse_expr(&tokens[2..(tokens.len() - 1)].to_vec());
+
+    Node::ArrayAccess(identifier.to_box(), array_idx.to_box())
 }

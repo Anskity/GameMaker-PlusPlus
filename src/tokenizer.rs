@@ -1,11 +1,13 @@
 use std::ops::Range;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Token {
     OpenParenthesis,
     CloseParenthesis,
     OpenCurly,
     CloseCurly,
+    OpenBracket,
+    CloseBracket,
     Comma,
     Dot,
     Equals,
@@ -100,6 +102,8 @@ impl SingleCharRecognizer {
         char_map.insert(')', Token::CloseParenthesis);
         char_map.insert('{', Token::OpenCurly);
         char_map.insert('}', Token::CloseCurly);
+        char_map.insert('[', Token::OpenBracket);
+        char_map.insert(']', Token::CloseBracket);
         char_map.insert(',', Token::Comma);
         char_map.insert('.', Token::Dot);
         char_map.insert('<', Token::LessThan);
@@ -194,7 +198,6 @@ pub fn tokenize(code: &&str) -> Vec<Token> {
         Box::new(SingleCharRecognizer::new()),
         Box::new(NumericLiteralRecognizer {}),
         Box::new(SkippableRecognizer {}),
-        Box::new(StringRecognizer {}),
     ];
 
     while ptr < code.chars().count() {
