@@ -4,6 +4,7 @@ pub enum Node {
     BinaryExpr(Box<Node>, char, Box<Node>),
     Identifier(String),
     NumericLiteral(u32),
+    String(String),
     UnparsedToken(Box<crate::tokenizer::Token>),
     BinaryOperator(char),
 }

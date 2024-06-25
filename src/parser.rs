@@ -9,7 +9,8 @@ pub fn parse(tokens: &Vec<Token>) -> Node {
     Node::Program(nodes)
 }
 
-pub fn parse_expr(tokens: &Vec<Token>) -> Node {
+fn parse_expr(tokens: &Vec<Token>) -> Node {
+    println!("{:?}", tokens);
     let (ranges, idxs) = parse_expr_components(tokens, vec!['+', '-', '*', '/']);
 
     let mut components: Vec<Node> = Vec::new();
@@ -34,7 +35,7 @@ pub fn parse_expr(tokens: &Vec<Token>) -> Node {
     components.remove(0)
 }
 
-pub fn parse_expr_components(
+fn parse_expr_components(
     tokens: &Vec<Token>,
     search_operators: Vec<char>,
 ) -> (Vec<RangeInclusive<usize>>, Vec<usize>) {
@@ -67,7 +68,7 @@ pub fn parse_expr_components(
     (ranges, oprts_idx)
 }
 
-pub fn parse_component(component: &Vec<Token>) -> Node {
+fn parse_component(component: &Vec<Token>) -> Node {
     let first = component.first();
     let last = component.last();
     if component.len() == 1 {
@@ -83,15 +84,16 @@ pub fn parse_component(component: &Vec<Token>) -> Node {
     panic!("UNEXPECTED COMPONENT: {:?}", component);
 }
 
-pub fn parse_primary(tk: &Token) -> Node {
+fn parse_primary(tk: &Token) -> Node {
     match tk {
         Token::Identifier(id) => Node::Identifier(id.clone()),
         Token::NumericLiteral(numb) => Node::NumericLiteral(numb.clone()),
+        Token::String(txt) => Node::String(txt.clone()),
         _ => panic!("ERROR PARSING PRIMARY: {:?}", tk),
     }
 }
 
-pub fn parse_operator(tk: &Token) -> Node {
+fn parse_operator(tk: &Token) -> Node {
     if let Token::BinaryOperator(chr) = tk {
         Node::BinaryOperator(chr.clone())
     } else {
@@ -99,7 +101,7 @@ pub fn parse_operator(tk: &Token) -> Node {
     }
 }
 
-pub fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Vec<char>) {
+fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Vec<char>) {
     let mut ptr = 0 as usize;
 
     while ptr < nodes.len() {

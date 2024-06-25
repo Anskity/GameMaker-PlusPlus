@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     OpenParenthesis,
@@ -10,10 +12,10 @@ pub enum Token {
     GreaterThan,
     LessThan,
     Semilicon,
-    QuotationMarks,
 
     Identifier(String),
     NumericLiteral(u32),
+    String(String),
 
     BinaryOperator(char),
 
@@ -102,7 +104,6 @@ impl SingleCharRecognizer {
         char_map.insert('.', Token::Dot);
         char_map.insert('<', Token::LessThan);
         char_map.insert('>', Token::GreaterThan);
-        char_map.insert('"', Token::QuotationMarks);
 
         SingleCharRecognizer { char_map }
     }
@@ -146,6 +147,45 @@ impl TokenRecognizer for NumericLiteralRecognizer {
     }
 }
 
+struct StringRecognizer {}
+impl TokenRecognizer for StringRecognizer {
+    fn is_valid(&self, current_char: &char) -> bool {
+        *current_char == '"'
+    }
+    fn consume(&self, left_code: &&str) -> TokenConsumeMessage {
+        println!("LEFT CODE: {left_code}");
+        let mut qmark_count = 0 as usize;
+        let mut txt_range: Option<Range<usize>> = None;
+        let mut consumed: Option<usize> = None;
+
+        for (i, chr) in left_code.chars().enumerate() {
+            if chr == '"' && left_code.chars().nth(i.max(1) - 1).unwrap_or('\0') != '\\' {
+                qmark_count += 1;
+            }
+
+            if qmark_count == 2 {
+                txt_range = Some(1..i);
+                consumed = Some(i + 1);
+                break;
+            }
+        }
+
+        if txt_range.is_none() || consumed.is_none() {
+            panic!("ERROR TOKENIZING STRING");
+        }
+
+        let mut str_text = left_code[txt_range.unwrap()].to_string();
+        str_text = str_text.replace("\\\"", "\"");
+        str_text = str_text.replace("\\\\", "\\");
+        str_text = str_text.replace("\\n", "\n");
+
+        println!("{str_text}");
+
+        let token = Token::String(str_text);
+        TokenConsumeMessage(vec![token], consumed.unwrap())
+    }
+}
+
 pub fn tokenize(code: &&str) -> Vec<Token> {
     let mut ptr: usize = 0;
     let mut tokens = Vec::<Token>::new();
@@ -154,6 +194,7 @@ pub fn tokenize(code: &&str) -> Vec<Token> {
         Box::new(SingleCharRecognizer::new()),
         Box::new(NumericLiteralRecognizer {}),
         Box::new(SkippableRecognizer {}),
+        Box::new(StringRecognizer {}),
     ];
 
     while ptr < code.chars().count() {
