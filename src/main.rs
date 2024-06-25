@@ -1,4 +1,4 @@
-use gamemaker_plus::parser::parse_expr;
+use gamemaker_plus::parser::parse;
 use gamemaker_plus::tokenizer::tokenize;
 
 fn main() {
@@ -11,7 +11,7 @@ fn main() {
 
     let tokens = tokenize(&code.as_str());
 
-    let expr = parse_expr(&tokens.iter().map(|tk| Box::from(tk.clone())).collect(), &0);
+    let expr = parse(&tokens);
 
-    expr.display(0);
+    dbg!(expr);
 }
