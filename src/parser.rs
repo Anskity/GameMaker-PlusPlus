@@ -133,6 +133,10 @@ fn parse_component(component: &Vec<Token>) -> Node {
         return parse_struct(component);
     }
 
+    if let (Token::OpenBracket, Token::CloseBracket) = (first.unwrap(), last.unwrap()) {
+        return parse_array_constructor(component);
+    }
+
     panic!("UNEXPECTED COMPONENT: {:?}", component);
 }
 
@@ -215,7 +219,7 @@ fn parse_array_access(arr_node: Node, tokens: &Vec<Token>) -> Node {
     Node::ArrayAccess(arr_node.to_box(), array_idx.to_box())
 }
 
-pub fn parse_function_call(func_node: Node, argument_tokens: &Vec<Token>) -> Node {
+fn parse_function_call(func_node: Node, argument_tokens: &Vec<Token>) -> Node {
     assert_eq!(*argument_tokens.first().unwrap(), Token::OpenParenthesis);
     assert_eq!(*argument_tokens.last().unwrap(), Token::CloseParenthesis);
 
@@ -242,7 +246,7 @@ pub fn parse_function_call(func_node: Node, argument_tokens: &Vec<Token>) -> Nod
     Node::FunctionCall(func_node.to_box(), arguments)
 }
 
-pub fn parse_struct(tokens: &Vec<Token>) -> Node {
+fn parse_struct(tokens: &Vec<Token>) -> Node {
     assert_eq!(*tokens.first().unwrap(), Token::OpenCurly);
     assert_eq!(*tokens.last().unwrap(), Token::CloseCurly);
 
@@ -287,4 +291,36 @@ pub fn parse_struct(tokens: &Vec<Token>) -> Node {
     let struct_node = Node::Struct(attribute_nodes);
 
     struct_node
+}
+
+pub fn parse_array_constructor(tokens: &Vec<Token>) -> Node {
+    assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
+    assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
+
+    let mut container_manager = CodeContainerManager::new();
+    let mut last_ptr: usize = 1;
+    let mut token_ranges: Vec<Range<usize>> = Vec::new();
+
+    split_tokens!(
+        tokens,
+        container_manager,
+        Token::Comma,
+        last_ptr,
+        token_ranges
+    );
+
+    let mut element_tokens: Vec<Vec<Token>> = Vec::new();
+    apply_range!(tokens, token_ranges, element_tokens);
+
+    let mut element_nodes: Vec<Box<Node>> = Vec::new();
+    for mut element in element_tokens {
+        if let Token::Comma = element.last().unwrap() {
+            element.pop();
+        }
+
+        let expr = parse_expr(&element);
+        element_nodes.push(expr.to_box());
+    }
+
+    Node::ArrayConstructor(element_nodes)
 }
