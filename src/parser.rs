@@ -186,6 +186,10 @@ macro_rules! split_tokens {
             }
             $container_manager.check(tk);
 
+            if !$container_manager.is_free() {
+                continue;
+            }
+
             if *tk == $separator || i == $vec.len() - 2 {
                 let range = if i == $vec.len() - 2 {
                     ($ptr_buff)..(i + 1)
@@ -236,6 +240,8 @@ fn parse_function_call(func_node: Node, argument_tokens: &Vec<Token>) -> Node {
         last_ptr,
         argument_ranges
     );
+
+    dbg!(&argument_tokens);
 
     let mut arguments: Vec<Box<Node>> = Vec::new();
     for range in argument_ranges {
@@ -293,7 +299,7 @@ fn parse_struct(tokens: &Vec<Token>) -> Node {
     struct_node
 }
 
-pub fn parse_array_constructor(tokens: &Vec<Token>) -> Node {
+fn parse_array_constructor(tokens: &Vec<Token>) -> Node {
     assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
     assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
 
