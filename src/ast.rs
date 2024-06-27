@@ -8,6 +8,7 @@ pub enum Node {
     UnparsedToken(Box<crate::tokenizer::Token>),
     BinaryOperator(char),
     ArrayAccess(Box<Node>, Box<Node>),
+    FunctionCall(Box<Node>, Vec<Box<Node>>),
 }
 
 impl Node {
