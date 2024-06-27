@@ -13,6 +13,7 @@ pub enum Node {
     Struct(Vec<Box<Node>>),
     StructAttribute(Box<Node>, Box<Node>),
     StructAttributePredefined(Box<Node>),
+    Ternary(Box<Node>, Box<Node>, Box<Node>),
 }
 
 impl Node {

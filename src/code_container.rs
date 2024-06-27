@@ -4,38 +4,42 @@ pub struct CodeContainerManager {
     pub bracket_value: usize,
     pub parenthesis_value: usize,
     pub curly_value: usize,
+    pub ternary_value: usize,
 
     pub check_bracket: bool,
     pub check_parenthesis: bool,
     pub check_curly: bool,
+    pub check_ternary: bool,
 }
 
 impl CodeContainerManager {
-    pub fn new_ext(check_parenthesis: bool, check_bracket: bool, check_curly: bool) -> Self {
+    pub fn new_ext(
+        check_parenthesis: bool,
+        check_bracket: bool,
+        check_curly: bool,
+        check_ternary: bool,
+    ) -> Self {
         CodeContainerManager {
             bracket_value: 0,
             parenthesis_value: 0,
             curly_value: 0,
+            ternary_value: 0,
 
             check_parenthesis,
             check_curly,
             check_bracket,
+            check_ternary,
         }
     }
 
     pub fn new() -> Self {
-        CodeContainerManager {
-            bracket_value: 0,
-            parenthesis_value: 0,
-            curly_value: 0,
-
-            check_parenthesis: true,
-            check_curly: true,
-            check_bracket: true,
-        }
+        CodeContainerManager::new_ext(true, true, true, true)
     }
     pub fn is_free(&self) -> bool {
-        self.bracket_value == 0 && self.parenthesis_value == 0 && self.curly_value == 0
+        self.bracket_value == 0
+            && self.parenthesis_value == 0
+            && self.curly_value == 0
+            && self.ternary_value == 0
     }
     pub fn check(&mut self, chr: &Token) {
         match *chr {
@@ -78,7 +82,26 @@ impl CodeContainerManager {
                 }
             }
 
+            Token::QuestionMark => self.ternary_value += if self.check_ternary { 1 } else { 0 },
+            Token::Colon => {
+                if !self.check_ternary {
+                    return;
+                }
+
+                if self.ternary_value > 0 {
+                    self.ternary_value -= 1
+                } else {
+                    panic!("TERNARY VALUE IS LOWER THAN ZERO");
+                }
+            }
+
             _ => {}
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.parenthesis_value = 0;
+        self.bracket_value = 0;
+        self.curly_value = 0;
     }
 }

@@ -11,6 +11,7 @@ pub enum Token {
     Comma,
     Dot,
     Colon,
+    QuestionMark,
     Equals,
     GreaterThan,
     LessThan,
@@ -110,6 +111,7 @@ impl SingleCharRecognizer {
         char_map.insert('<', Token::LessThan);
         char_map.insert('>', Token::GreaterThan);
         char_map.insert(':', Token::Colon);
+        char_map.insert('?', Token::QuestionMark);
 
         SingleCharRecognizer { char_map }
     }
@@ -159,7 +161,6 @@ impl TokenRecognizer for StringRecognizer {
         *current_char == '"'
     }
     fn consume(&self, left_code: &&str) -> TokenConsumeMessage {
-        println!("LEFT CODE: {left_code}");
         let mut qmark_count = 0 as usize;
         let mut txt_range: Option<Range<usize>> = None;
         let mut consumed: Option<usize> = None;
@@ -184,8 +185,6 @@ impl TokenRecognizer for StringRecognizer {
         str_text = str_text.replace("\\\"", "\"");
         str_text = str_text.replace("\\\\", "\\");
         str_text = str_text.replace("\\n", "\n");
-
-        println!("{str_text}");
 
         let token = Token::String(str_text);
         TokenConsumeMessage(vec![token], consumed.unwrap())

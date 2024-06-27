@@ -1,5 +1,7 @@
 use crate::ast::Node;
 use crate::code_container::CodeContainerManager;
+use crate::parser_macros::*;
+use crate::parser_utils::*;
 use crate::tokenizer::Token;
 use std::ops::{Range, RangeInclusive};
 
@@ -110,22 +112,21 @@ fn parse_component(component: &Vec<Token>) -> Node {
     }
 
     if let Token::Identifier(id) = first.unwrap() {
-        return match (component.get(1).unwrap(), last.unwrap()) {
-            (Token::OpenBracket, Token::CloseBracket) => parse_array_access(
-                Node::Identifier(id.clone()),
-                &component[1..component.len()].to_vec(),
-            ),
+        match (component.get(1).unwrap(), last.unwrap()) {
+            (Token::OpenBracket, Token::CloseBracket) => {
+                return parse_array_access(
+                    Node::Identifier(id.clone()),
+                    &component[1..component.len()].to_vec(),
+                )
+            }
 
-            (Token::OpenParenthesis, Token::CloseParenthesis) => parse_function_call(
-                Node::Identifier(id.clone()),
-                &component[1..component.len()].to_vec(),
-            ),
-
-            _ => panic!(
-                "IDENTIIER FOLLOWED BY UNEXPECTED TOKENS WHILE PARSING COMPONENT: {:?} | {:?}",
-                component.get(1).unwrap(),
-                component.last().unwrap()
-            ),
+            (Token::OpenParenthesis, Token::CloseParenthesis) => {
+                return parse_function_call(
+                    Node::Identifier(id.clone()),
+                    &component[1..component.len()].to_vec(),
+                )
+            }
+            _ => {}
         };
     }
 
@@ -135,6 +136,12 @@ fn parse_component(component: &Vec<Token>) -> Node {
 
     if let (Token::OpenBracket, Token::CloseBracket) = (first.unwrap(), last.unwrap()) {
         return parse_array_constructor(component);
+    }
+
+    if component.iter().any(|tk| *tk == Token::QuestionMark)
+        && component.iter().any(|tk| *tk == Token::Colon)
+    {
+        return parse_ternary(&component);
     }
 
     panic!("UNEXPECTED COMPONENT: {:?}", component);
@@ -176,42 +183,6 @@ fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Vec<ch
             ptr += 1;
         }
     }
-}
-
-macro_rules! split_tokens {
-    ($vec:ident, $container_manager: ident, $separator: expr, $ptr_buff: ident, $target: ident) => {
-        for (i, tk) in $vec.iter().enumerate() {
-            if i == 0 || i == $vec.len() - 1 {
-                continue;
-            }
-            $container_manager.check(tk);
-
-            if !$container_manager.is_free() {
-                continue;
-            }
-
-            if *tk == $separator || i == $vec.len() - 2 {
-                let range = if i == $vec.len() - 2 {
-                    ($ptr_buff)..(i + 1)
-                } else {
-                    ($ptr_buff)..i
-                };
-
-                $target.push(range);
-
-                $ptr_buff = i + 1;
-                continue;
-            }
-        }
-    };
-}
-
-macro_rules! apply_range {
-    ($container:ident, $ranges:ident, $target: ident) => {
-        for range in $ranges {
-            $target.push($container[range].to_vec());
-        }
-    };
 }
 
 fn parse_array_access(arr_node: Node, tokens: &Vec<Token>) -> Node {
@@ -329,4 +300,26 @@ fn parse_array_constructor(tokens: &Vec<Token>) -> Node {
     }
 
     Node::ArrayConstructor(element_nodes)
+}
+
+pub fn parse_ternary(tokens: &Vec<Token>) -> Node {
+    dbg!(&tokens);
+    let question_mark_idx: usize = find_free_token(tokens, Token::QuestionMark, 0, false)
+        .expect("COULDNT FIND QUESTION MARK WHEN PARSING TERNARY OPERATOR");
+    let colon_idx: usize = find_free_token(tokens, Token::Colon, 0, false)
+        .expect("COULDNT FIND COLON WHEN PARSING TERNARY OPERATOR");
+
+    let condition_range = 0..question_mark_idx;
+    let true_range = (question_mark_idx + 1)..colon_idx;
+    let false_range = (colon_idx + 1)..tokens.len();
+
+    let condition_expr = parse_expr(&tokens[condition_range].to_vec());
+    let true_expr = parse_expr(&tokens[true_range].to_vec());
+    let false_expr = parse_expr(&tokens[false_range].to_vec());
+
+    Node::Ternary(
+        condition_expr.to_box(),
+        true_expr.to_box(),
+        false_expr.to_box(),
+    )
 }
