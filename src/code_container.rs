@@ -11,7 +11,7 @@ pub struct CodeContainerManager {
 }
 
 impl CodeContainerManager {
-    pub fn new(check_parenthesis: bool, check_bracket: bool, check_curly: bool) -> Self {
+    pub fn new_ext(check_parenthesis: bool, check_bracket: bool, check_curly: bool) -> Self {
         CodeContainerManager {
             bracket_value: 0,
             parenthesis_value: 0,
@@ -20,6 +20,18 @@ impl CodeContainerManager {
             check_parenthesis,
             check_curly,
             check_bracket,
+        }
+    }
+
+    pub fn new() -> Self {
+        CodeContainerManager {
+            bracket_value: 0,
+            parenthesis_value: 0,
+            curly_value: 0,
+
+            check_parenthesis: true,
+            check_curly: true,
+            check_bracket: true,
         }
     }
     pub fn is_free(&self) -> bool {

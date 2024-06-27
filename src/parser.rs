@@ -41,7 +41,7 @@ fn parse_expr_components(
 ) -> (Vec<RangeInclusive<usize>>, Vec<usize>) {
     let mut ranges = Vec::<RangeInclusive<usize>>::new();
     let mut oprts_idx = Vec::<usize>::new();
-    let mut container_manager = CodeContainerManager::new(true, true, true);
+    let mut container_manager = CodeContainerManager::new();
     let mut last_ptr = 0 as isize;
 
     for (ptr, tk) in tokens.iter().enumerate() {
@@ -73,7 +73,13 @@ fn parse_component(component: &Vec<Token>) -> Node {
     }
 
     if let Token::OpenParenthesis = first.unwrap() {
-        if let Token::CloseParenthesis = last.unwrap() {
+        if component
+            .iter()
+            .filter(|tk| **tk == Token::CloseParenthesis)
+            .count()
+            == 1
+            && *last.unwrap() == Token::CloseParenthesis
+        {
             return parse_expr(&component[1..(component.len() - 1)].to_vec());
         } else if component.contains(&Token::CloseParenthesis) {
             let end_position = component
@@ -81,14 +87,18 @@ fn parse_component(component: &Vec<Token>) -> Node {
                 .position(|tk| *tk == Token::CloseParenthesis)
                 .unwrap();
 
-            println!("{:?}", component[0..=end_position].to_vec());
-
             match component[end_position + 1] {
                 Token::OpenBracket => {
                     let bracket_range = (end_position + 1)..;
 
                     let array_id = parse_expr(&component[0..=end_position].to_vec());
                     return parse_array_access(array_id, &component[bracket_range].to_vec());
+                }
+
+                Token::OpenParenthesis => {
+                    let parenthesis_range = (end_position + 1)..;
+                    let func_id = parse_expr(&component[0..=end_position].to_vec());
+                    return parse_function_call(func_id, &component[parenthesis_range].to_vec());
                 }
 
                 _ => panic!(
@@ -99,13 +109,24 @@ fn parse_component(component: &Vec<Token>) -> Node {
         }
     }
 
-    if let (Token::Identifier(id), Token::OpenBracket, Token::CloseBracket) =
-        (first.unwrap(), component.get(1).unwrap(), last.unwrap())
-    {
-        return parse_array_access(
-            Node::Identifier(id.clone()),
-            &component[1..component.len()].to_vec(),
-        );
+    if let Token::Identifier(id) = first.unwrap() {
+        return match (component.get(1).unwrap(), last.unwrap()) {
+            (Token::OpenBracket, Token::CloseBracket) => parse_array_access(
+                Node::Identifier(id.clone()),
+                &component[1..component.len()].to_vec(),
+            ),
+
+            (Token::OpenParenthesis, Token::CloseParenthesis) => parse_function_call(
+                Node::Identifier(id.clone()),
+                &component[1..component.len()].to_vec(),
+            ),
+
+            _ => panic!(
+                "IDENTIIER FOLLOWED BY UNEXPECTED TOKENS WHILE PARSING COMPONENT: {:?} | {:?}",
+                component.get(1).unwrap(),
+                component.last().unwrap()
+            ),
+        };
     }
 
     panic!("UNEXPECTED COMPONENT: {:?}", component);
@@ -156,4 +177,41 @@ fn parse_array_access(arr_node: Node, tokens: &Vec<Token>) -> Node {
     let array_idx = parse_expr(&tokens[1..(tokens.len() - 1)].to_vec());
 
     Node::ArrayAccess(arr_node.to_box(), array_idx.to_box())
+}
+
+pub fn parse_function_call(func_node: Node, argument_tokens: &Vec<Token>) -> Node {
+    assert_eq!(*argument_tokens.first().unwrap(), Token::OpenParenthesis);
+    assert_eq!(*argument_tokens.last().unwrap(), Token::CloseParenthesis);
+
+    let mut container_manager = CodeContainerManager::new();
+    let mut arguments: Vec<Box<Node>> = Vec::new();
+    let mut last_ptr: usize = 1;
+
+    for (i, tk) in argument_tokens.iter().enumerate() {
+        if i == 0 || i == argument_tokens.len() - 1 {
+            continue;
+        }
+        container_manager.check(tk);
+
+        if *tk == Token::Comma || i == argument_tokens.len() - 2 {
+            let arg_range = if i == argument_tokens.len() - 2 {
+                (last_ptr)..(i + 1)
+            } else {
+                (last_ptr)..i
+            };
+            println!("RANGE: {:?}", arg_range);
+            println!(
+                "ARG TOKENS: {:?}",
+                argument_tokens[arg_range.clone()].to_vec()
+            );
+            let expr = parse_expr(&argument_tokens[arg_range].to_vec());
+
+            arguments.push(expr.to_box());
+
+            last_ptr = i + 1;
+            continue;
+        }
+    }
+
+    Node::FunctionCall(func_node.to_box(), arguments)
 }

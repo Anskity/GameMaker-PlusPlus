@@ -198,6 +198,7 @@ pub fn tokenize(code: &&str) -> Vec<Token> {
         Box::new(SingleCharRecognizer::new()),
         Box::new(NumericLiteralRecognizer {}),
         Box::new(SkippableRecognizer {}),
+        Box::new(StringRecognizer {}),
     ];
 
     while ptr < code.chars().count() {
@@ -212,7 +213,7 @@ pub fn tokenize(code: &&str) -> Vec<Token> {
 
         let code_left = &code[ptr..];
         let consume_message = token_match
-            .expect("Unexpected token while tokenizing")
+            .expect(format!("Unexpected token while tokenizing: {}", chr).as_str())
             .consume(&code_left);
 
         let mut new_tokens = consume_message.0;
