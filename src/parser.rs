@@ -11,7 +11,6 @@ pub fn parse(tokens: &Vec<Token>) -> Node {
 }
 
 fn parse_expr(tokens: &Vec<Token>) -> Node {
-    println!("{:?}", tokens);
     let (ranges, idxs) = parse_expr_components(tokens, vec!['+', '-', '*', '/']);
 
     let mut components: Vec<Node> = Vec::new();
@@ -76,13 +75,37 @@ fn parse_component(component: &Vec<Token>) -> Node {
     if let Token::OpenParenthesis = first.unwrap() {
         if let Token::CloseParenthesis = last.unwrap() {
             return parse_expr(&component[1..(component.len() - 1)].to_vec());
+        } else if component.contains(&Token::CloseParenthesis) {
+            let end_position = component
+                .iter()
+                .position(|tk| *tk == Token::CloseParenthesis)
+                .unwrap();
+
+            println!("{:?}", component[0..=end_position].to_vec());
+
+            match component[end_position + 1] {
+                Token::OpenBracket => {
+                    let bracket_range = (end_position + 1)..;
+
+                    let array_id = parse_expr(&component[0..=end_position].to_vec());
+                    return parse_array_access(array_id, &component[bracket_range].to_vec());
+                }
+
+                _ => panic!(
+                    "Unexpecte token when parsing complex access: {:?}",
+                    component[end_position + 1]
+                ),
+            }
         }
     }
 
-    if let Token::OpenBracket = component.get(1).unwrap() {
-        if let Token::CloseBracket = last.unwrap() {
-            return parse_array_access(&component[0..component.len()].to_vec());
-        }
+    if let (Token::Identifier(id), Token::OpenBracket, Token::CloseBracket) =
+        (first.unwrap(), component.get(1).unwrap(), last.unwrap())
+    {
+        return parse_array_access(
+            Node::Identifier(id.clone()),
+            &component[1..component.len()].to_vec(),
+        );
     }
 
     panic!("UNEXPECTED COMPONENT: {:?}", component);
@@ -126,22 +149,11 @@ fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Vec<ch
     }
 }
 
-fn parse_array_access(tokens: &Vec<Token>) -> Node {
-    let identifier: Node = match tokens.first().unwrap() {
-        Token::Identifier(id) => Node::Identifier(id.clone()),
-        _ => panic!("FIRST TOKEN WHEN PARSING ARRAY ACCESS ISNT AN IDENTIFIER"),
-    };
+fn parse_array_access(arr_node: Node, tokens: &Vec<Token>) -> Node {
+    assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
+    assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
 
-    match tokens.get(1).unwrap() {
-        Token::OpenBracket => {}
-        _ => panic!("SECOND TOKEN WHEN PARSING ARRAY ACCESS ISNT AN OPEN BRACKET"),
-    }
-    match tokens.last().unwrap() {
-        Token::CloseBracket => {}
-        _ => panic!("LAST TOKEN WHEN PARSING ARRAY ACCESS ISNT AN ENDING BRACKET"),
-    }
+    let array_idx = parse_expr(&tokens[1..(tokens.len() - 1)].to_vec());
 
-    let array_idx = parse_expr(&tokens[2..(tokens.len() - 1)].to_vec());
-
-    Node::ArrayAccess(identifier.to_box(), array_idx.to_box())
+    Node::ArrayAccess(arr_node.to_box(), array_idx.to_box())
 }

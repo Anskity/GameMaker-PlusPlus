@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     OpenParenthesis,
     CloseParenthesis,
@@ -42,14 +42,14 @@ struct IdentifierRecognizer {}
 
 impl TokenRecognizer for IdentifierRecognizer {
     fn is_valid(&self, current_char: &char) -> bool {
-        current_char.is_lowercase() != current_char.is_uppercase()
+        (current_char.is_lowercase() != current_char.is_uppercase()) || *current_char == '_'
     }
 
     fn consume(&self, code_left: &&str) -> TokenConsumeMessage {
         let identifier: String = code_left
             .chars()
             .into_iter()
-            .take_while(|chr| self.is_valid(&chr))
+            .take_while(|chr| self.is_valid(&chr) || chr.is_numeric())
             .collect();
         let consumed = identifier.chars().count();
 
