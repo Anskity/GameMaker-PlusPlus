@@ -1,7 +1,7 @@
 use crate::ast::Node;
 use crate::code_container::CodeContainerManager;
 use crate::tokenizer::Token;
-use std::ops::RangeInclusive;
+use std::ops::{Range, RangeInclusive};
 
 pub fn parse(tokens: &Vec<Token>) -> Node {
     let mut nodes = Vec::<Box<Node>>::new();
@@ -129,6 +129,10 @@ fn parse_component(component: &Vec<Token>) -> Node {
         };
     }
 
+    if let (Token::OpenCurly, Token::CloseCurly) = (first.unwrap(), last.unwrap()) {
+        return parse_struct(component);
+    }
+
     panic!("UNEXPECTED COMPONENT: {:?}", component);
 }
 
@@ -170,6 +174,38 @@ fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Vec<ch
     }
 }
 
+macro_rules! split_tokens {
+    ($vec:ident, $container_manager: ident, $separator: expr, $ptr_buff: ident, $target: ident) => {
+        for (i, tk) in $vec.iter().enumerate() {
+            if i == 0 || i == $vec.len() - 1 {
+                continue;
+            }
+            $container_manager.check(tk);
+
+            if *tk == $separator || i == $vec.len() - 2 {
+                let range = if i == $vec.len() - 2 {
+                    ($ptr_buff)..(i + 1)
+                } else {
+                    ($ptr_buff)..i
+                };
+
+                $target.push(range);
+
+                $ptr_buff = i + 1;
+                continue;
+            }
+        }
+    };
+}
+
+macro_rules! apply_range {
+    ($container:ident, $ranges:ident, $target: ident) => {
+        for range in $ranges {
+            $target.push($container[range].to_vec());
+        }
+    };
+}
+
 fn parse_array_access(arr_node: Node, tokens: &Vec<Token>) -> Node {
     assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
     assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
@@ -184,34 +220,71 @@ pub fn parse_function_call(func_node: Node, argument_tokens: &Vec<Token>) -> Nod
     assert_eq!(*argument_tokens.last().unwrap(), Token::CloseParenthesis);
 
     let mut container_manager = CodeContainerManager::new();
-    let mut arguments: Vec<Box<Node>> = Vec::new();
+    //let mut arguments: Vec<Box<Node>> = Vec::new();
     let mut last_ptr: usize = 1;
 
-    for (i, tk) in argument_tokens.iter().enumerate() {
-        if i == 0 || i == argument_tokens.len() - 1 {
-            continue;
-        }
-        container_manager.check(tk);
+    let mut argument_ranges: Vec<Range<usize>> = Vec::new();
 
-        if *tk == Token::Comma || i == argument_tokens.len() - 2 {
-            let arg_range = if i == argument_tokens.len() - 2 {
-                (last_ptr)..(i + 1)
-            } else {
-                (last_ptr)..i
-            };
-            println!("RANGE: {:?}", arg_range);
-            println!(
-                "ARG TOKENS: {:?}",
-                argument_tokens[arg_range.clone()].to_vec()
-            );
-            let expr = parse_expr(&argument_tokens[arg_range].to_vec());
+    split_tokens!(
+        argument_tokens,
+        container_manager,
+        Token::Comma,
+        last_ptr,
+        argument_ranges
+    );
 
-            arguments.push(expr.to_box());
-
-            last_ptr = i + 1;
-            continue;
-        }
+    let mut arguments: Vec<Box<Node>> = Vec::new();
+    for range in argument_ranges {
+        let expr = parse_expr(&argument_tokens[range].to_vec());
+        arguments.push(expr.to_box());
     }
 
     Node::FunctionCall(func_node.to_box(), arguments)
+}
+
+pub fn parse_struct(tokens: &Vec<Token>) -> Node {
+    assert_eq!(*tokens.first().unwrap(), Token::OpenCurly);
+    assert_eq!(*tokens.last().unwrap(), Token::CloseCurly);
+
+    let mut last_ptr: usize = 1;
+    let mut attribute_ranges: Vec<std::ops::Range<usize>> = Vec::new();
+    let mut container_manager = CodeContainerManager::new();
+
+    split_tokens!(
+        tokens,
+        container_manager,
+        Token::Comma,
+        last_ptr,
+        attribute_ranges
+    );
+
+    let mut attribute_tokens: Vec<Vec<Token>> = Vec::new();
+    apply_range!(tokens, attribute_ranges, attribute_tokens);
+
+    let mut attribute_nodes: Vec<Box<Node>> = Vec::new();
+    for tks in attribute_tokens {
+        let id = parse_primary(tks.first().unwrap());
+        if tks.len() == 1 || (tks.len() == 2 && tks[1] == Token::Comma) {
+            let node = Node::StructAttributePredefined(id.to_box());
+            attribute_nodes.push(node.to_box());
+
+            continue;
+        }
+
+        assert_eq!(tks[1], Token::Colon);
+
+        let expr_range = if *tks.last().unwrap() == Token::Comma {
+            2..(tks.len() - 1)
+        } else {
+            2..tks.len()
+        };
+        let expr = parse_expr(&tks[expr_range].to_vec());
+
+        let node = Node::StructAttribute(id.to_box(), expr.to_box());
+        attribute_nodes.push(node.to_box());
+    }
+
+    let struct_node = Node::Struct(attribute_nodes);
+
+    struct_node
 }

@@ -10,6 +10,7 @@ pub enum Token {
     CloseBracket,
     Comma,
     Dot,
+    Colon,
     Equals,
     GreaterThan,
     LessThan,
@@ -108,6 +109,7 @@ impl SingleCharRecognizer {
         char_map.insert('.', Token::Dot);
         char_map.insert('<', Token::LessThan);
         char_map.insert('>', Token::GreaterThan);
+        char_map.insert(':', Token::Colon);
 
         SingleCharRecognizer { char_map }
     }

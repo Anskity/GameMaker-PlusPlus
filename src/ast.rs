@@ -9,6 +9,9 @@ pub enum Node {
     BinaryOperator(char),
     ArrayAccess(Box<Node>, Box<Node>),
     FunctionCall(Box<Node>, Vec<Box<Node>>),
+    Struct(Vec<Box<Node>>),
+    StructAttribute(Box<Node>, Box<Node>),
+    StructAttributePredefined(Box<Node>),
 }
 
 impl Node {
