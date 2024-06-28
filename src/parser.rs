@@ -185,27 +185,6 @@ fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Vec<ch
     }
 }
 
-fn parse_ternary_on_components(nodes: &mut Vec<Node>) {
-    //let mut ptr: usize = 0 as usize;
-    //
-    //while ptr < nodes.len() {
-    //    if let Node::BinaryOperator(chr) = nodes[ptr] {
-    //        if search_operators.contains(&chr) {
-    //            let mut operation: Vec<Node> = nodes.drain((ptr - 1)..=(ptr + 1)).collect();
-    //
-    //            let left = operation.remove(0);
-    //            let right = operation.remove(1);
-    //            let binary_expr = Node::BinaryExpr(left.to_box(), chr.clone(), right.to_box());
-    //            nodes.insert(ptr - 1, binary_expr);
-    //        } else {
-    //            ptr += 1;
-    //        }
-    //    } else {
-    //        ptr += 1;
-    //    }
-    //}
-}
-
 fn parse_array_access(arr_node: Node, tokens: &Vec<Token>) -> Node {
     assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
     assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
