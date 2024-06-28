@@ -13,6 +13,12 @@ pub fn parse(tokens: &Vec<Token>) -> Node {
 }
 
 fn parse_expr(tokens: &Vec<Token>) -> Node {
+    if find_free_token(tokens, Token::QuestionMark, 0, false).is_some()
+        && find_free_token(tokens, Token::Colon, 0, true).is_some()
+    {
+        return parse_ternary(tokens);
+    }
+
     let (ranges, idxs) = parse_expr_components(tokens, vec!['+', '-', '*', '/']);
 
     let mut components: Vec<Node> = Vec::new();
@@ -138,12 +144,6 @@ fn parse_component(component: &Vec<Token>) -> Node {
         return parse_array_constructor(component);
     }
 
-    if component.iter().any(|tk| *tk == Token::QuestionMark)
-        && component.iter().any(|tk| *tk == Token::Colon)
-    {
-        return parse_ternary(&component);
-    }
-
     panic!("UNEXPECTED COMPONENT: {:?}", component);
 }
 
@@ -183,6 +183,27 @@ fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Vec<ch
             ptr += 1;
         }
     }
+}
+
+fn parse_ternary_on_components(nodes: &mut Vec<Node>) {
+    //let mut ptr: usize = 0 as usize;
+    //
+    //while ptr < nodes.len() {
+    //    if let Node::BinaryOperator(chr) = nodes[ptr] {
+    //        if search_operators.contains(&chr) {
+    //            let mut operation: Vec<Node> = nodes.drain((ptr - 1)..=(ptr + 1)).collect();
+    //
+    //            let left = operation.remove(0);
+    //            let right = operation.remove(1);
+    //            let binary_expr = Node::BinaryExpr(left.to_box(), chr.clone(), right.to_box());
+    //            nodes.insert(ptr - 1, binary_expr);
+    //        } else {
+    //            ptr += 1;
+    //        }
+    //    } else {
+    //        ptr += 1;
+    //    }
+    //}
 }
 
 fn parse_array_access(arr_node: Node, tokens: &Vec<Token>) -> Node {
