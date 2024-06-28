@@ -189,9 +189,22 @@ fn parse_array_access(arr_node: Node, tokens: &Vec<Token>) -> Node {
     assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
     assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
 
-    let array_idx = parse_expr(&tokens[1..(tokens.len() - 1)].to_vec());
+    let bracket_idx = tokens
+        .iter()
+        .position(|tk| *tk == Token::CloseBracket)
+        .unwrap();
 
-    Node::ArrayAccess(arr_node.to_box(), array_idx.to_box())
+    let array_idx = parse_expr(&tokens[1..bracket_idx].to_vec());
+
+    let access_node = Node::ArrayAccess(arr_node.to_box(), array_idx.to_box());
+
+    if bracket_idx == tokens.len() - 1 {
+        access_node
+    } else {
+        let idx_tokens = tokens[(bracket_idx + 1)..].to_vec();
+
+        parse_array_access(access_node, &idx_tokens)
+    }
 }
 
 fn parse_function_call(func_node: Node, argument_tokens: &Vec<Token>) -> Node {
