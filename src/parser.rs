@@ -212,8 +212,6 @@ fn parse_function_call(func_node: Node, argument_tokens: &Vec<Token>) -> Node {
         argument_ranges
     );
 
-    dbg!(&argument_tokens);
-
     let mut arguments: Vec<Box<Node>> = Vec::new();
     for range in argument_ranges {
         let expr = parse_expr(&argument_tokens[range].to_vec());
@@ -303,7 +301,6 @@ fn parse_array_constructor(tokens: &Vec<Token>) -> Node {
 }
 
 pub fn parse_ternary(tokens: &Vec<Token>) -> Node {
-    dbg!(&tokens);
     let question_mark_idx: usize = find_free_token(tokens, Token::QuestionMark, 0, false)
         .expect("COULDNT FIND QUESTION MARK WHEN PARSING TERNARY OPERATOR");
     let colon_idx: usize = find_free_token(tokens, Token::Colon, 0, false)
