@@ -16,6 +16,9 @@ pub enum Token {
     GreaterThan,
     LessThan,
     Semilicon,
+    Bar,
+    HashTag,
+    Dollar,
 
     Identifier(String),
     NumericLiteral(u32),
@@ -112,6 +115,9 @@ impl SingleCharRecognizer {
         char_map.insert('>', Token::GreaterThan);
         char_map.insert(':', Token::Colon);
         char_map.insert('?', Token::QuestionMark);
+        char_map.insert('|', Token::Bar);
+        char_map.insert('#', Token::HashTag);
+        char_map.insert('$', Token::Dollar);
 
         SingleCharRecognizer { char_map }
     }

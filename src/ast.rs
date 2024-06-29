@@ -15,6 +15,11 @@ pub enum Node {
     StructAttributePredefined(Box<Node>),
     StructAccess(Box<Node>, Box<Node>),
     Ternary(Box<Node>, Box<Node>, Box<Node>),
+
+    DsListAccess(Box<Node>, Box<Node>),
+    DsMapAccess(Box<Node>, Box<Node>),
+    DsGridAccess(Box<Node>, Box<Node>, Box<Node>),
+    StructKeyAccess(Box<Node>, Box<Node>),
 }
 
 impl Node {

@@ -1,1 +1,1 @@
-matrix[x][y].map(add(1)).filter(even).forEach(0)
+list[|0][2].key

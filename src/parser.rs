@@ -3,7 +3,9 @@ use crate::code_container::CodeContainerManager;
 use crate::parser_macros::*;
 use crate::parser_utils::*;
 use crate::tokenizer::Token;
+use std::collections::HashMap;
 use std::ops::{Range, RangeInclusive};
+use std::thread::current;
 
 pub fn parse(tokens: &Vec<Token>) -> Node {
     let mut nodes = Vec::<Box<Node>>::new();
@@ -204,14 +206,46 @@ fn parse_array_access(arr_node: Node, tokens: &Vec<Token>) -> Node {
     assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
     assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
 
-    let bracket_idx = tokens
-        .iter()
-        .position(|tk| *tk == Token::CloseBracket)
-        .unwrap();
+    static ACESSORS: [Token; 4] = [
+        Token::Bar,
+        Token::QuestionMark,
+        Token::HashTag,
+        Token::Dollar,
+    ];
 
-    let array_idx = parse_expr(&tokens[1..bracket_idx].to_vec());
+    let bracket_idx = find_free_token(tokens, Token::CloseBracket, 0).unwrap();
 
-    let access_node = Node::ArrayAccess(arr_node.to_box(), array_idx.to_box());
+    let current_acessor = ACESSORS.iter().find(|tk| **tk == tokens[1]);
+
+    let idx_start: usize = if current_acessor.is_none() { 1 } else { 2 };
+
+    let array_idx = match current_acessor {
+        Some(Token::HashTag) => None,
+        _ => Some(parse_expr(&tokens[idx_start..bracket_idx].to_vec())),
+    };
+
+    let access_node = match current_acessor {
+        Some(Token::Bar) => Node::DsListAccess(arr_node.to_box(), array_idx.unwrap().to_box()),
+        Some(Token::Dollar) => {
+            Node::StructKeyAccess(arr_node.to_box(), array_idx.unwrap().to_box())
+        }
+        Some(Token::QuestionMark) => {
+            Node::DsMapAccess(arr_node.to_box(), array_idx.unwrap().to_box())
+        }
+        Some(Token::HashTag) => {
+            let comma_idx =
+                find_free_token(&tokens[idx_start..bracket_idx].to_vec(), Token::Comma, 0);
+            assert!(comma_idx.is_some());
+
+            let x_pos_node = parse_expr(&tokens[idx_start..comma_idx.unwrap()].to_vec());
+            let y_pos_node = parse_expr(&tokens[comma_idx.unwrap() + 1..bracket_idx].to_vec());
+
+            Node::DsGridAccess(arr_node.to_box(), x_pos_node.to_box(), y_pos_node.to_box())
+        }
+
+        Some(_) => panic!("UNEXPECTED ACESSOR: {:?}", current_acessor.unwrap()),
+        None => Node::ArrayAccess(arr_node.to_box(), array_idx.unwrap().to_box()),
+    };
 
     if bracket_idx == tokens.len() - 1 {
         access_node
@@ -297,7 +331,6 @@ fn parse_struct(tokens: &Vec<Token>) -> Node {
 }
 
 fn parse_array_constructor(tokens: &Vec<Token>) -> Node {
-    println!("{:?}", tokens);
     assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
     assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
 
