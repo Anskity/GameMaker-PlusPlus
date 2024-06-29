@@ -81,10 +81,8 @@ fn parse_component(component: &Vec<Token>) -> Node {
     }
 
     let dot_idx = find_free_token(component, Token::Dot, 0);
-    println!("{:?}", dot_idx);
     if dot_idx.is_some() {
         let struct_node = parse_expr(&component[0..dot_idx.unwrap()].to_vec());
-        println!("{:?}", struct_node);
         return parse_struct_access(struct_node, &component[dot_idx.unwrap()..].to_vec());
     }
 
@@ -144,6 +142,18 @@ fn parse_component(component: &Vec<Token>) -> Node {
 
     if let (Token::OpenCurly, Token::CloseCurly) = (first.unwrap(), last.unwrap()) {
         return parse_struct(component);
+    }
+
+    let close_bracket_count = amount_of_tokens(component, Token::CloseBracket);
+
+    if close_bracket_count > 1 {
+        let first_close_bracket = find_free_token(component, Token::CloseBracket, 0);
+        let array_constructor_node =
+            parse_array_constructor(&component[0..=first_close_bracket.unwrap()].to_vec());
+        return parse_array_access(
+            array_constructor_node,
+            &component[first_close_bracket.unwrap() + 1..].to_vec(),
+        );
     }
 
     if let (Token::OpenBracket, Token::CloseBracket) = (first.unwrap(), last.unwrap()) {
@@ -287,6 +297,7 @@ fn parse_struct(tokens: &Vec<Token>) -> Node {
 }
 
 fn parse_array_constructor(tokens: &Vec<Token>) -> Node {
+    println!("{:?}", tokens);
     assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
     assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
 
@@ -342,11 +353,7 @@ fn parse_ternary(tokens: &Vec<Token>) -> Node {
 fn parse_struct_access(struct_id: Node, tokens: &Vec<Token>) -> Node {
     assert_eq!(tokens[0], Token::Dot);
 
-    println!("{:?} | {:?}", struct_id, tokens);
-
     let access_node = parse_expr(&tokens[1..].to_vec());
-
-    println!("STRUCT ID: {:?} | TOKENS: {:?}", struct_id, tokens);
 
     Node::StructAccess(struct_id.to_box(), access_node.to_box())
 }
