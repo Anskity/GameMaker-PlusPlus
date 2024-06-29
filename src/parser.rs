@@ -3,9 +3,7 @@ use crate::code_container::CodeContainerManager;
 use crate::parser_macros::*;
 use crate::parser_utils::*;
 use crate::tokenizer::Token;
-use std::collections::HashMap;
 use std::ops::{Range, RangeInclusive};
-use std::thread::current;
 
 pub fn parse(tokens: &Vec<Token>) -> Node {
     let mut nodes = Vec::<Box<Node>>::new();
