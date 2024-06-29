@@ -18,14 +18,9 @@ pub fn amount_of_tokens(tokens: &Vec<Token>, search: Token) -> usize {
     count
 }
 
-pub fn find_free_token(
-    tokens: &Vec<Token>,
-    search: Token,
-    offset: usize,
-    check_ternary: bool,
-) -> Option<usize> {
+pub fn find_free_token(tokens: &Vec<Token>, search: Token, offset: usize) -> Option<usize> {
     let mut idx: usize = 0;
-    let mut container_manager = CodeContainerManager::new_ext(true, true, true, check_ternary);
+    let mut container_manager = CodeContainerManager::new_ext(true, true, true);
 
     for (i, tk) in tokens.iter().enumerate() {
         container_manager.check(tk);

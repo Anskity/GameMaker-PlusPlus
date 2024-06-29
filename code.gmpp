@@ -1,7 +1,1 @@
-{
-    val: 2,
-    txt: "oi",
-    predefined,
-    idk: 2
-}
-
+arr[0].filter("even").map(additive)

@@ -13,8 +13,8 @@ pub fn parse(tokens: &Vec<Token>) -> Node {
 }
 
 fn parse_expr(tokens: &Vec<Token>) -> Node {
-    if find_free_token(tokens, Token::QuestionMark, 0, false).is_some()
-        && find_free_token(tokens, Token::Colon, 0, true).is_some()
+    if find_free_token(tokens, Token::QuestionMark, 0).is_some()
+        && find_free_token(tokens, Token::Colon, 0).is_some()
     {
         return parse_ternary(tokens);
     }
@@ -80,34 +80,40 @@ fn parse_component(component: &Vec<Token>) -> Node {
         return parse_primary(first.unwrap());
     }
 
+    let dot_idx = find_free_token(component, Token::Dot, 0);
+    println!("{:?}", dot_idx);
+    if dot_idx.is_some() {
+        let struct_node = parse_expr(&component[0..dot_idx.unwrap()].to_vec());
+        println!("{:?}", struct_node);
+        return parse_struct_access(struct_node, &component[dot_idx.unwrap()..].to_vec());
+    }
+
     if let Token::OpenParenthesis = first.unwrap() {
-        if component
-            .iter()
-            .filter(|tk| **tk == Token::CloseParenthesis)
-            .count()
-            == 1
-            && *last.unwrap() == Token::CloseParenthesis
-        {
+        if let Token::CloseParenthesis = last.unwrap() {
             return parse_expr(&component[1..(component.len() - 1)].to_vec());
         } else if component.contains(&Token::CloseParenthesis) {
-            let end_position = component
-                .iter()
-                .position(|tk| *tk == Token::CloseParenthesis)
-                .unwrap();
+            let end_position = find_free_token(component, Token::CloseParenthesis, 0).unwrap();
 
-            match component[end_position + 1] {
-                Token::OpenBracket => {
+            match component.get(end_position + 1) {
+                Some(Token::OpenBracket) => {
                     let bracket_range = (end_position + 1)..;
 
                     let array_id = parse_expr(&component[0..=end_position].to_vec());
                     return parse_array_access(array_id, &component[bracket_range].to_vec());
                 }
 
-                Token::OpenParenthesis => {
+                Some(Token::OpenParenthesis) => {
                     let parenthesis_range = (end_position + 1)..;
                     let func_id = parse_expr(&component[0..=end_position].to_vec());
                     return parse_function_call(func_id, &component[parenthesis_range].to_vec());
                 }
+
+                Some(Token::Dot) => {
+                    let struct_id = parse_expr(&component[0..=end_position].to_vec());
+                    return parse_struct_access(struct_id, &component[end_position + 1..].to_vec());
+                }
+
+                None => {}
 
                 _ => panic!(
                     "Unexpecte token when parsing complex access: {:?}",
@@ -184,7 +190,6 @@ fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Vec<ch
         }
     }
 }
-
 fn parse_array_access(arr_node: Node, tokens: &Vec<Token>) -> Node {
     assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
     assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
@@ -313,10 +318,10 @@ fn parse_array_constructor(tokens: &Vec<Token>) -> Node {
     Node::ArrayConstructor(element_nodes)
 }
 
-pub fn parse_ternary(tokens: &Vec<Token>) -> Node {
-    let question_mark_idx: usize = find_free_token(tokens, Token::QuestionMark, 0, false)
+fn parse_ternary(tokens: &Vec<Token>) -> Node {
+    let question_mark_idx: usize = find_free_token(tokens, Token::QuestionMark, 0)
         .expect("COULDNT FIND QUESTION MARK WHEN PARSING TERNARY OPERATOR");
-    let colon_idx: usize = find_free_token(tokens, Token::Colon, 0, false)
+    let colon_idx: usize = find_free_token(tokens, Token::Colon, 0)
         .expect("COULDNT FIND COLON WHEN PARSING TERNARY OPERATOR");
 
     let condition_range = 0..question_mark_idx;
@@ -332,4 +337,16 @@ pub fn parse_ternary(tokens: &Vec<Token>) -> Node {
         true_expr.to_box(),
         false_expr.to_box(),
     )
+}
+
+fn parse_struct_access(struct_id: Node, tokens: &Vec<Token>) -> Node {
+    assert_eq!(tokens[0], Token::Dot);
+
+    println!("{:?} | {:?}", struct_id, tokens);
+
+    let access_node = parse_expr(&tokens[1..].to_vec());
+
+    println!("STRUCT ID: {:?} | TOKENS: {:?}", struct_id, tokens);
+
+    Node::StructAccess(struct_id.to_box(), access_node.to_box())
 }
