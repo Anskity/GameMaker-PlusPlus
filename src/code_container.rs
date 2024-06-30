@@ -73,6 +73,50 @@ impl CodeContainerManager {
             _ => {}
         }
     }
+    pub fn check_reverse(&mut self, chr: &Token) {
+        match *chr {
+            Token::CloseParenthesis => {
+                self.parenthesis_value += if self.check_parenthesis { 1 } else { 0 }
+            }
+            Token::OpenParenthesis => {
+                if !self.check_parenthesis {
+                    return;
+                }
+
+                if self.parenthesis_value > 0 {
+                    self.parenthesis_value -= 1
+                } else {
+                    panic!("PARENTHESIS VALUE IS LOWER THAN ZERO");
+                }
+            }
+            Token::CloseCurly => self.curly_value += if self.check_curly { 1 } else { 0 },
+            Token::OpenCurly => {
+                if !self.check_curly {
+                    return;
+                }
+
+                if self.curly_value > 0 {
+                    self.curly_value -= 1
+                } else {
+                    panic!("CURLY VALUE IS LOWER THAN ZERO");
+                }
+            }
+            Token::CloseBracket => self.bracket_value += if self.check_bracket { 1 } else { 0 },
+            Token::OpenBracket => {
+                if !self.check_bracket {
+                    return;
+                }
+
+                if self.bracket_value > 0 {
+                    self.bracket_value -= 1
+                } else {
+                    panic!("BRACKET VALUE IS LOWER THAN ZERO");
+                }
+            }
+
+            _ => {}
+        }
+    }
 
     pub fn reset(&mut self) {
         self.parenthesis_value = 0;

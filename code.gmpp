@@ -1,1 +1,3 @@
-grid[# getX("config.json"), getY("config.json")] = 0;
+while (player.vivo) {
+    x = "i dont know";
+}

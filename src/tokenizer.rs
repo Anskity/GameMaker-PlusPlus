@@ -34,6 +34,8 @@ pub enum Token {
     Until,
     Loop,
     For,
+    If,
+    With,
 }
 
 struct TokenConsumeMessage(Vec<Token>, usize); //(new_tokens, consumed_characters)
@@ -62,6 +64,8 @@ impl TokenRecognizer for IdentifierRecognizer {
             "function" => Token::Function,
             "return" => Token::Return,
             "constructor" => Token::Constructor,
+            "if" => Token::If,
+            "with" => Token::With,
             "while" => Token::While,
             "do" => Token::Do,
             "until" => Token::Until,

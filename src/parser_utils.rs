@@ -1,4 +1,7 @@
-use crate::{code_container::CodeContainerManager, tokenizer::Token};
+use crate::{
+    code_container::{self, CodeContainerManager},
+    tokenizer::Token,
+};
 pub fn amount_of_tokens(tokens: &Vec<Token>, search: Token) -> usize {
     let mut container_manager = CodeContainerManager::new();
     let mut count: usize = 0;
@@ -38,6 +41,37 @@ pub fn find_free_token(tokens: &Vec<Token>, search: Token, offset: usize) -> Opt
         }
 
         idx += 1;
+    }
+
+    None
+}
+
+pub fn find_pair_container(tokens: &Vec<Token>, idx: usize) -> Option<usize> {
+    let start_tk = &tokens[idx];
+    let going_forward = match *start_tk {
+        Token::OpenParenthesis | Token::OpenCurly | Token::OpenBracket => true,
+        Token::CloseParenthesis | Token::CloseCurly | Token::CloseBracket => false,
+        _ => panic!("Unexpected token finding a pair: {:?}", start_tk),
+    };
+    let mut ptr = idx;
+    let mut container = CodeContainerManager::new();
+
+    loop {
+        if going_forward {
+            container.check(&tokens[ptr]);
+        } else {
+            container.check_reverse(&tokens[ptr]);
+        }
+
+        if container.is_free() {
+            return Some(ptr);
+        }
+
+        if (ptr == 0 && !going_forward) || (ptr == tokens.len() - 1 && going_forward) {
+            break;
+        }
+
+        ptr = (ptr as isize + if going_forward { 1 } else { -1 }) as usize;
     }
 
     None

@@ -1,6 +1,7 @@
 use crate::ast::Node;
+use crate::parser::core::parse;
 use crate::parser::expr::parse_expr;
-use crate::parser_utils::find_free_token;
+use crate::parser_utils::{find_free_token, find_pair_container};
 use crate::tokenizer::Token;
 
 pub fn parse_stmt(tokens: &Vec<Token>) -> Node {
@@ -19,10 +20,30 @@ pub fn parse_stmt(tokens: &Vec<Token>) -> Node {
         }
     }
 
+    let basic_statement_node = match first {
+        Token::If => Some(parse_basic_statements(tokens, |condition, code| {
+            Node::If(condition.to_box(), code.to_box())
+        })),
+
+        Token::While => Some(parse_basic_statements(tokens, |condition, code| {
+            Node::While(condition.to_box(), code.to_box())
+        })),
+
+        Token::With => Some(parse_basic_statements(tokens, |condition, code| {
+            Node::With(condition.to_box(), code.to_box())
+        })),
+
+        _ => None,
+    };
+
+    if basic_statement_node.is_some() {
+        return basic_statement_node.unwrap();
+    }
+
     panic!("Unexpected statement: {:?}", tokens);
 }
 
-pub fn parse_variable_declaration(tokens: &Vec<Token>) -> Node {
+fn parse_variable_declaration(tokens: &Vec<Token>) -> Node {
     let equals_idx = find_free_token(tokens, Token::Equals, 0)
         .expect("Variable declaration without equals token");
 
@@ -42,4 +63,27 @@ pub fn parse_variable_declaration(tokens: &Vec<Token>) -> Node {
     let expr = parse_expr(&tokens[equals_idx + 1..].to_vec());
 
     Node::VariableDeclaration(value_id.to_box(), expr.to_box())
+}
+
+fn parse_basic_statements(tokens: &Vec<Token>, maker: fn(Node, Node) -> Node) -> Node {
+    assert_eq!(tokens[1], Token::OpenParenthesis);
+
+    let parenthesis_idx = find_free_token(tokens, Token::CloseParenthesis, 0)
+        .expect("COULDNT FIND FREE CLOSE PARENTHESIS IN IF STATEMENT");
+
+    let condition_node = parse_expr(&tokens[1..=parenthesis_idx].to_vec());
+
+    let program = if let Token::OpenCurly = &tokens[parenthesis_idx + 1] {
+        let close_curly_idx: usize = find_pair_container(tokens, parenthesis_idx + 1)
+            .expect("No closing curly brace when parsing an if statement");
+
+        parse(&tokens[parenthesis_idx + 2..close_curly_idx].to_vec())
+    } else {
+        let semilicon_idx = find_free_token(tokens, Token::Semilicon, 0)
+            .expect("COULD FIND SEMILICON IN IF STATEMENT WITHOUT CURLY BRACES");
+
+        parse(&tokens[parenthesis_idx + 1..=semilicon_idx].to_vec())
+    };
+
+    maker(condition_node, program)
 }
