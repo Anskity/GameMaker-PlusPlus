@@ -1,9 +1,10 @@
-use gamemaker_plus::parser::parse;
+use gamemaker_plus::parser::core::parse;
+use gamemaker_plus::parser::expr::parse_expr;
 use gamemaker_plus::tokenizer::tokenize;
 use std::fs;
 
 fn main() {
-    expr_parsing_impl();
+    parsing_impl();
 }
 
 #[allow(dead_code)]
@@ -16,7 +17,7 @@ fn expr_parsing_impl() {
     };
 
     let tokens = tokenize(&code.as_str());
-    let syntax_tree = parse(&tokens);
+    let syntax_tree = parse_expr(&tokens);
 
     dbg!(syntax_tree);
 }
@@ -36,6 +37,16 @@ fn tokenizing_impl() {
 }
 
 #[allow(dead_code)]
-fn expr_eval_impl() {
-    todo!()
+fn parsing_impl() {
+    let mut args: Vec<String> = std::env::args().collect();
+    let code: String = if args.len() < 2 {
+        fs::read_to_string("code.gmpp").expect("ERROR TRYING TO ACCESS FILE: code.gmpp")
+    } else {
+        args.remove(1)
+    };
+
+    let tokens = tokenize(&code.as_str());
+    let syntax_tree = parse(&tokens);
+
+    dbg!(syntax_tree);
 }

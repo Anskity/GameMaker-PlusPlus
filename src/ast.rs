@@ -1,11 +1,14 @@
 #[derive(Debug, Clone)]
 pub enum Node {
+    //Statements
     Program(Vec<Box<Node>>),
+    VariableDeclaration(Box<Node>, Box<Node>),
+
+    //Expressions
     BinaryExpr(Box<Node>, char, Box<Node>),
     Identifier(String),
     NumericLiteral(u32),
     String(String),
-    UnparsedToken(Box<crate::tokenizer::Token>),
     BinaryOperator(char),
     ArrayAccess(Box<Node>, Box<Node>),
     ArrayConstructor(Vec<Box<Node>>),
@@ -15,7 +18,6 @@ pub enum Node {
     StructAttributePredefined(Box<Node>),
     StructAccess(Box<Node>, Box<Node>),
     Ternary(Box<Node>, Box<Node>, Box<Node>),
-
     DsListAccess(Box<Node>, Box<Node>),
     DsMapAccess(Box<Node>, Box<Node>),
     DsGridAccess(Box<Node>, Box<Node>, Box<Node>),

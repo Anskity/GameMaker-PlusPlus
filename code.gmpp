@@ -1,1 +1,1 @@
-list[|0][2].key
+grid[# getX("config.json"), getY("config.json")] = 0;
