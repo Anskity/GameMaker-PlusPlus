@@ -1,7 +1,4 @@
-use crate::{
-    code_container::{self, CodeContainerManager},
-    tokenizer::Token,
-};
+use crate::{code_container::CodeContainerManager, tokenizer::Token};
 pub fn amount_of_tokens(tokens: &Vec<Token>, search: Token) -> usize {
     let mut container_manager = CodeContainerManager::new();
     let mut count: usize = 0;

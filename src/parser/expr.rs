@@ -6,6 +6,54 @@ use crate::tokenizer::Token;
 use std::ops::Range;
 use std::ops::RangeInclusive;
 
+pub fn get_avaible_tokens_for_expr(tokens: &[Token]) -> usize {
+    let mut code_manager = CodeContainerManager::new();
+
+    let mut first_iteration = true;
+
+    let mut length: usize = 1;
+    let mut ever_contained = false;
+
+    for (prev_tk, current_tk) in tokens.iter().zip(tokens.iter().skip(1)) {
+        if first_iteration {
+            code_manager.check(prev_tk);
+            first_iteration = false;
+        }
+
+        if !code_manager.is_free() {
+            ever_contained = true;
+        }
+
+        let is_safe = code_manager.is_safe(current_tk);
+
+        if !is_safe {
+            break;
+        }
+
+        if let (Token::Identifier(_), Token::Identifier(_)) = (prev_tk, current_tk) {
+            break;
+        }
+        if let (Token::NumericLiteral(_), Token::NumericLiteral(_)) = (prev_tk, current_tk) {
+            break;
+        }
+
+        if code_manager.is_free() && ever_contained {
+            println!("HI");
+            let should_break = match *current_tk {
+                Token::BinaryOperator(_) => false,
+                _ => true,
+            };
+            if should_break {
+                break;
+            }
+        }
+        length += 1;
+        code_manager.check(current_tk);
+    }
+
+    length
+}
+
 pub fn parse_struct_access(struct_id: Node, tokens: &Vec<Token>) -> Node {
     assert_eq!(tokens[0], Token::Dot);
 
@@ -194,6 +242,9 @@ pub fn parse_expr(tokens: &Vec<Token>) -> Node {
     {
         return parse_ternary(tokens);
     }
+
+    let tokens = &tokens[..get_avaible_tokens_for_expr(tokens)].to_vec();
+    dbg!(tokens);
 
     let (ranges, idxs) = parse_expr_components(tokens, vec!['+', '-', '*', '/']);
 

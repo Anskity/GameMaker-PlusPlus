@@ -118,9 +118,26 @@ impl CodeContainerManager {
         }
     }
 
+    pub fn is_safe(&self, tk: &Token) -> bool {
+        match *tk {
+            Token::CloseParenthesis => self.parenthesis_value > 0,
+            Token::CloseCurly => self.curly_value > 0,
+            Token::CloseBracket => self.bracket_value > 0,
+            _ => true,
+        }
+    }
+
     pub fn reset(&mut self) {
         self.parenthesis_value = 0;
         self.bracket_value = 0;
         self.curly_value = 0;
+    }
+
+    pub fn try_add(&self, tk: &Token) -> Result<(), ()> {
+        if self.is_safe(tk) {
+            Err(())
+        } else {
+            Ok(())
+        }
     }
 }

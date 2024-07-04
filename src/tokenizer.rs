@@ -35,6 +35,7 @@ pub enum Token {
     Loop,
     For,
     If,
+    Else,
     With,
 }
 

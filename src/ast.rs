@@ -3,7 +3,8 @@ pub enum Node {
     //Statements
     Program(Vec<Box<Node>>),
     VariableDeclaration(Box<Node>, Box<Node>),
-    If(Box<Node>, Box<Node>),
+    If(Box<Node>, Box<Node>, Option<Box<Node>>),
+    Else(Box<Node>),
     While(Box<Node>, Box<Node>),
     With(Box<Node>, Box<Node>),
 
