@@ -10,6 +10,11 @@ pub enum Node {
 
     //Expressions
     BinaryExpr(Box<Node>, char, Box<Node>),
+    Neg(Box<Node>),
+    PostIncrement(String),
+    PreIncrement(String),
+    PostDecrement(String),
+    PreDecrement(String),
     Identifier(String),
     NumericLiteral(u32),
     String(String),

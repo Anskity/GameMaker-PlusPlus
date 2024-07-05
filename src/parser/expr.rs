@@ -38,13 +38,14 @@ pub fn get_avaible_tokens_for_expr(tokens: &[Token]) -> usize {
         }
 
         if code_manager.is_free() && ever_contained {
-            println!("HI");
-            let should_break = match *current_tk {
-                Token::BinaryOperator(_) => false,
-                _ => true,
-            };
-            if should_break {
-                break;
+            if let Token::OpenParenthesis = current_tk {
+                let should_break = match *current_tk {
+                    Token::BinaryOperator(_) => false,
+                    _ => true,
+                };
+                if should_break {
+                    break;
+                }
             }
         }
         length += 1;
@@ -244,7 +245,6 @@ pub fn parse_expr(tokens: &Vec<Token>) -> Node {
     }
 
     let tokens = &tokens[..get_avaible_tokens_for_expr(tokens)].to_vec();
-    dbg!(tokens);
 
     let (ranges, idxs) = parse_expr_components(tokens, vec!['+', '-', '*', '/']);
 
@@ -278,24 +278,35 @@ pub fn parse_expr_components(
     let mut oprts_idx = Vec::<usize>::new();
     let mut container_manager = CodeContainerManager::new();
     let mut last_ptr = 0 as isize;
+    let mut just_hit_operator = false;
 
     for (ptr, tk) in tokens.iter().enumerate() {
         let iptr = ptr as isize;
         container_manager.check(tk);
 
         if let Token::BinaryOperator(chr) = *tk {
-            if container_manager.is_free() && (search_operators.contains(&chr)) {
+            if container_manager.is_free()
+                && (search_operators.contains(&chr))
+                && !just_hit_operator
+            {
                 let new_range = (last_ptr as usize)..=((iptr - 1) as usize);
                 ranges.push(new_range);
                 oprts_idx.push(iptr.clone() as usize);
                 last_ptr = iptr + 1;
+                just_hit_operator = true;
+            } else {
+                just_hit_operator = false;
             }
+        } else {
+            just_hit_operator = false;
         }
         if ptr == tokens.len() - 1 {
             let right: usize = ptr + 0;
             ranges.push((last_ptr as usize)..=right);
         }
     }
+
+    println!("{:?}", ranges);
 
     (ranges, oprts_idx)
 }
@@ -305,6 +316,23 @@ pub fn parse_component(component: &Vec<Token>) -> Node {
     let last = component.last();
     if component.len() == 1 {
         return parse_primary(first.unwrap());
+    }
+
+    if let Token::BinaryOperator(chr) = first.unwrap() {
+        return match *chr {
+            '-' => Node::Neg(parse_expr(&component[1..].to_vec()).to_box()),
+            _ => panic!("FOUND INVALID FIRST OPERATOR IN COMPONENT: {:?}", component),
+        };
+    }
+
+    if component.len() == 2 {
+        match (first.unwrap().to_owned(), last.unwrap().to_owned()) {
+            (Token::Identifier(id), Token::SingleIncrement) => return Node::PostIncrement(id),
+            (Token::Identifier(id), Token::SingleDecrement) => return Node::PostDecrement(id),
+            (Token::SingleIncrement, Token::Identifier(id)) => return Node::PreIncrement(id),
+            (Token::SingleDecrement, Token::Identifier(id)) => return Node::PreDecrement(id),
+            _ => {}
+        }
     }
 
     let dot_idx = find_free_token(component, Token::Dot, 0);
