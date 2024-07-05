@@ -238,6 +238,7 @@ pub fn parse_function_call(func_node: Node, argument_tokens: &Vec<Token>) -> Nod
     Node::FunctionCall(func_node.to_box(), arguments)
 }
 pub fn parse_expr(tokens: &Vec<Token>) -> Node {
+    println!("{:?}", tokens);
     if find_free_token(tokens, Token::QuestionMark, 0).is_some()
         && find_free_token(tokens, Token::Colon, 0).is_some()
     {
@@ -288,6 +289,7 @@ pub fn parse_expr_components(
             if container_manager.is_free()
                 && (search_operators.contains(&chr))
                 && !just_hit_operator
+                && ptr != 0
             {
                 let new_range = (last_ptr as usize)..=((iptr - 1) as usize);
                 ranges.push(new_range);
