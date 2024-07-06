@@ -4,6 +4,10 @@ use gamemaker_plus::tokenizer::tokenize;
 use std::fs;
 
 fn main() {
+    if !std::path::Path::new("code.gmpp").exists() {
+        panic!("Please create a code.gmpp file");
+    }
+
     parsing_impl();
 }
 

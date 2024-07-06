@@ -1,0 +1,3 @@
+do {
+    a = 2;
+} until is_dead();
