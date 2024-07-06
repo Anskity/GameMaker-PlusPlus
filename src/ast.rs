@@ -9,6 +9,11 @@ pub enum Node {
     With(Box<Node>, Box<Node>),
     Do(Box<Node>, Box<Node>),
     Until(Box<Node>),
+    ModifyBy(Box<Node>, OperatorType, Box<Node>),
+    IncrementBy(Box<Node>, Box<Node>),
+    DecrementBy(Box<Node>, Box<Node>),
+    MultiplyBy(Box<Node>, Box<Node>),
+    DivideBy(Box<Node>, Box<Node>),
 
     //Symbols
     BinaryOperator(char),
@@ -31,6 +36,8 @@ pub enum Node {
     ArrayAccess(Box<Node>, Box<Node>),
     ArrayConstructor(Vec<Box<Node>>),
     FunctionCall(Box<Node>, Vec<Box<Node>>),
+    FunctionParemeter(Box<Node>),
+    AnonymousFunctionDeclaration(Vec<Box<Node>>, Box<Node>),
     Struct(Vec<Box<Node>>),
     StructAttribute(Box<Node>, Box<Node>),
     StructAttributePredefined(Box<Node>),
@@ -53,4 +60,12 @@ pub enum DeclarationType {
     Var,
     Const,
     Let,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OperatorType {
+    Add,
+    Sub,
+    Mul,
+    Div,
 }

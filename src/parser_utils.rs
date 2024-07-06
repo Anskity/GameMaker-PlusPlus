@@ -1,5 +1,5 @@
 use crate::{code_container::CodeContainerManager, tokenizer::Token};
-pub fn amount_of_tokens(tokens: &[Token], search: Token) -> usize {
+pub fn amount_of_tokens(tokens: &[Token], search: &Token) -> usize {
     let mut container_manager = CodeContainerManager::new();
     let mut count: usize = 0;
 
@@ -10,7 +10,7 @@ pub fn amount_of_tokens(tokens: &[Token], search: Token) -> usize {
             continue;
         }
 
-        if search == *tk {
+        if search == tk {
             count += 1;
         }
     }
@@ -18,7 +18,7 @@ pub fn amount_of_tokens(tokens: &[Token], search: Token) -> usize {
     count
 }
 
-pub fn find_free_token(tokens: &[Token], search: Token, offset: usize) -> Option<usize> {
+pub fn find_free_token(tokens: &[Token], search: &Token, offset: usize) -> Option<usize> {
     let mut idx: usize = 0;
     let mut container_manager = CodeContainerManager::new_ext(true, true, true);
 
@@ -29,7 +29,7 @@ pub fn find_free_token(tokens: &[Token], search: Token, offset: usize) -> Option
             continue;
         }
 
-        if *tk != search {
+        if tk != search {
             continue;
         }
 

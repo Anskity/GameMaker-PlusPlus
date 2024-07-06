@@ -1,5 +1,6 @@
 use crate::ast::Node;
 use crate::code_container::CodeContainerManager;
+use crate::parser::core::parse;
 use crate::parser_macros::*;
 use crate::parser_utils::*;
 use crate::tokenizer::Token;
@@ -145,7 +146,7 @@ pub fn parse_array_access(arr_node: Node, tokens: &[Token]) -> Node {
         Token::Dollar,
     ];
 
-    let bracket_idx = find_free_token(tokens, Token::CloseBracket, 0).unwrap();
+    let bracket_idx = find_free_token(tokens, &Token::CloseBracket, 0).unwrap();
 
     let current_acessor = ACESSORS.iter().find(|tk| **tk == tokens[1]);
 
@@ -165,7 +166,7 @@ pub fn parse_array_access(arr_node: Node, tokens: &[Token]) -> Node {
             Node::DsMapAccess(arr_node.to_box(), array_idx.unwrap().to_box())
         }
         Some(Token::HashTag) => {
-            let comma_idx = find_free_token(&tokens[1..tokens.len() - 1], Token::Comma, 0);
+            let comma_idx = find_free_token(&tokens[1..tokens.len() - 1], &Token::Comma, 0);
             assert!(comma_idx.is_some());
 
             let x_pos_node = parse_expr(&tokens[idx_start..comma_idx.unwrap() + 1]);
@@ -187,9 +188,9 @@ pub fn parse_array_access(arr_node: Node, tokens: &[Token]) -> Node {
     }
 }
 pub fn parse_ternary(tokens: &[Token]) -> Node {
-    let question_mark_idx: usize = find_free_token(tokens, Token::QuestionMark, 0)
+    let question_mark_idx: usize = find_free_token(tokens, &Token::QuestionMark, 0)
         .expect("COULDNT FIND QUESTION MARK WHEN PARSING TERNARY OPERATOR");
-    let colon_idx: usize = find_free_token(tokens, Token::Colon, 0)
+    let colon_idx: usize = find_free_token(tokens, &Token::Colon, 0)
         .expect("COULDNT FIND COLON WHEN PARSING TERNARY OPERATOR");
 
     let condition_range = 0..question_mark_idx;
@@ -233,8 +234,8 @@ pub fn parse_function_call(func_node: Node, argument_tokens: &[Token]) -> Node {
     Node::FunctionCall(func_node.to_box(), arguments)
 }
 pub fn parse_expr(tokens: &[Token]) -> Node {
-    if find_free_token(tokens, Token::QuestionMark, 0).is_some()
-        && find_free_token(tokens, Token::Colon, 0).is_some()
+    if find_free_token(tokens, &Token::QuestionMark, 0).is_some()
+        && find_free_token(tokens, &Token::Colon, 0).is_some()
     {
         return parse_ternary(tokens);
     }
@@ -319,6 +320,11 @@ pub fn parse_component(component: &[Token]) -> Node {
         return Node::BitwiseNot(parse_expr(&component[1..]).to_box());
     }
 
+    if let Token::Function = first.unwrap() {
+        assert_eq!(component[1], Token::OpenParenthesis);
+        return parse_anonymous_function(component);
+    }
+
     if let Token::BinaryOperator(chr) = first.unwrap() {
         return match *chr {
             '-' => Node::Neg(parse_expr(&component[1..]).to_box()),
@@ -336,7 +342,7 @@ pub fn parse_component(component: &[Token]) -> Node {
         }
     }
 
-    let dot_idx = find_free_token(component, Token::Dot, 0);
+    let dot_idx = find_free_token(component, &Token::Dot, 0);
     if dot_idx.is_some() {
         let struct_node = parse_expr(&component[0..dot_idx.unwrap()]);
         return parse_struct_access(struct_node, &component[dot_idx.unwrap()..]);
@@ -346,7 +352,7 @@ pub fn parse_component(component: &[Token]) -> Node {
         if let Token::CloseParenthesis = last.unwrap() {
             return parse_expr(&component[1..(component.len() - 1)]);
         } else if component.contains(&Token::CloseParenthesis) {
-            let end_position = find_free_token(component, Token::CloseParenthesis, 0).unwrap();
+            let end_position = find_free_token(component, &Token::CloseParenthesis, 0).unwrap();
 
             match component.get(end_position + 1) {
                 Some(Token::OpenBracket) => {
@@ -400,10 +406,10 @@ pub fn parse_component(component: &[Token]) -> Node {
         return parse_struct(component);
     }
 
-    let close_bracket_count = amount_of_tokens(component, Token::CloseBracket);
+    let close_bracket_count = amount_of_tokens(component, &Token::CloseBracket);
 
     if close_bracket_count > 1 {
-        let first_close_bracket = find_free_token(component, Token::CloseBracket, 0);
+        let first_close_bracket = find_free_token(component, &Token::CloseBracket, 0);
         let array_constructor_node =
             parse_array_constructor(&component[0..=first_close_bracket.unwrap()]);
         return parse_array_access(
@@ -455,4 +461,41 @@ pub fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Ve
             ptr += 1;
         }
     }
+}
+
+fn parse_anonymous_function(tokens: &[Token]) -> Node {
+    assert_eq!(tokens[0], Token::Function);
+    assert_eq!(tokens[1], Token::OpenParenthesis);
+    let close_parenthesis = find_pair_container(tokens, 1).unwrap();
+
+    let paramethers = parse_function_paremeters(&tokens[1..=close_parenthesis]);
+
+    assert_eq!(tokens[close_parenthesis + 1], Token::OpenCurly);
+    let close_curly = find_pair_container(tokens, close_parenthesis + 1).unwrap();
+
+    let code_node = parse(&tokens[close_parenthesis + 2..close_curly].to_vec());
+
+    Node::AnonymousFunctionDeclaration(paramethers, code_node.to_box())
+}
+
+fn parse_function_paremeters(tokens: &[Token]) -> Vec<Box<Node>> {
+    assert_eq!(tokens[0], Token::OpenParenthesis);
+    assert_eq!(*tokens.last().unwrap(), Token::CloseParenthesis);
+    let mut parameter_ranges: Vec<Range<usize>> = Vec::new();
+    let mut code_container = CodeContainerManager::new();
+    let mut last_ptr = 1usize;
+    split_tokens!(
+        tokens,
+        code_container,
+        Token::Comma,
+        last_ptr,
+        parameter_ranges
+    );
+
+    let parameter_nodes: Vec<Box<Node>> = parameter_ranges
+        .into_iter()
+        .map(|range| parse_expr(&tokens[range]).to_box())
+        .collect();
+
+    parameter_nodes
 }

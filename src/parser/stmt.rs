@@ -1,24 +1,14 @@
 use crate::ast::DeclarationType;
 use crate::ast::Node;
+use crate::ast::OperatorType;
 use crate::parser::core::parse;
 use crate::parser::expr::{get_avaible_tokens_for_expr, parse_expr};
+use crate::parser_utils::amount_of_tokens;
 use crate::parser_utils::find_free_token;
 use crate::parser_utils::find_pair_container;
 use crate::tokenizer::Token;
 
 pub fn parse_stmt(tokens: &[Token]) -> (Node, usize) {
-    let semilicon_idx = find_free_token(tokens, Token::Semilicon, 0);
-
-    if semilicon_idx.is_some() {
-        assert!(tokens.len() > 2);
-        if tokens[1] == Token::Equals || tokens[2] == Token::Equals {
-            return (
-                parse_variable_declaration(tokens),
-                semilicon_idx.unwrap() + 1,
-            );
-        }
-    }
-
     if let Token::If = tokens[0] {
         return parse_if_statement(tokens);
     }
@@ -31,6 +21,41 @@ pub fn parse_stmt(tokens: &[Token]) -> (Node, usize) {
         return parse_do_statement(tokens);
     }
 
+    let semilicon_idx = find_free_token(tokens, &Token::Semilicon, 0);
+
+    let equals_idx = find_free_token(tokens, &Token::Equals, 0);
+    if equals_idx.is_some() {
+        let equals_idx = equals_idx.unwrap();
+        let end_idx = semilicon_idx.unwrap_or_else(|| {
+            assert_eq!(tokens[equals_idx + 1], Token::Function);
+            assert_eq!(tokens[equals_idx + 2], Token::OpenParenthesis);
+            let close_parenthesis = find_pair_container(tokens, equals_idx + 2).unwrap();
+            assert_eq!(tokens[close_parenthesis + 1], Token::OpenCurly);
+            let close_curly = find_pair_container(tokens, close_parenthesis + 1).unwrap();
+
+            close_curly
+        });
+        return (parse_variable_declaration(&tokens[..=end_idx]), end_idx + 1);
+    }
+
+    if semilicon_idx.is_some() {
+        let semilicon_idx = semilicon_idx.unwrap();
+        assert!(tokens.len() > 2);
+
+        const MODIFIER_TKS: [Token; 4] = [
+            Token::IncrementBy,
+            Token::DecrementBy,
+            Token::MultiplyBy,
+            Token::DivideBy,
+        ];
+        for modifier_tk in MODIFIER_TKS.iter() {
+            if find_free_token(tokens, modifier_tk, 0).is_some() {
+                let node = parse_modifier_by(&tokens[0..=semilicon_idx], modifier_tk);
+                return (node, semilicon_idx + 1);
+            }
+        }
+    }
+
     let prepared_tokens = &tokens[..semilicon_idx.unwrap_or_else(|| tokens.len())];
 
     (
@@ -40,9 +65,8 @@ pub fn parse_stmt(tokens: &[Token]) -> (Node, usize) {
 }
 
 fn parse_variable_declaration(tokens: &[Token]) -> Node {
-    let equals_idx = find_free_token(tokens, Token::Equals, 0);
+    let equals_idx = find_free_token(tokens, &Token::Equals, 0);
     assert!(equals_idx.is_some());
-    assert_eq!(*tokens.last().unwrap(), Token::Semilicon);
 
     let equals_idx = equals_idx.unwrap();
 
@@ -58,7 +82,12 @@ fn parse_variable_declaration(tokens: &[Token]) -> Node {
     let identifier_range = identifier_range_start..equals_idx;
     let identifier = parse_expr(&tokens[identifier_range]);
 
-    let init_value = parse_expr(&tokens[(equals_idx + 1)..(tokens.len() - 1)]);
+    let end_idx = if let Token::Semilicon = tokens.last().unwrap() {
+        tokens.len() - 1
+    } else {
+        tokens.len()
+    };
+    let init_value = parse_expr(&tokens[(equals_idx + 1)..end_idx]);
 
     Node::VariableDeclaration(variable_type, identifier.to_box(), init_value.to_box())
 }
@@ -133,8 +162,9 @@ fn parse_do_statement(tokens: &[Token]) -> (Node, usize) {
     let code_node = parse(&tokens[2..close_curly].to_vec());
 
     assert_eq!(tokens[close_curly + 1], Token::Until);
-    let semilicon_idx =
-        find_free_token(&tokens[close_curly + 2..], Token::Semilicon, 0).unwrap() + close_curly + 2;
+    let semilicon_idx = find_free_token(&tokens[close_curly + 2..], &Token::Semilicon, 0).unwrap()
+        + close_curly
+        + 2;
 
     let condition_node = parse_expr(&tokens[close_curly + 2..semilicon_idx]);
 
@@ -142,4 +172,30 @@ fn parse_do_statement(tokens: &[Token]) -> (Node, usize) {
     let do_node = Node::Do(code_node.to_box(), until_node.to_box());
 
     (do_node, semilicon_idx + 1)
+}
+
+fn parse_modifier_by(tokens: &[Token], modifier_tk: &Token) -> Node {
+    assert_eq!(*tokens.last().unwrap(), Token::Semilicon);
+    assert_eq!(amount_of_tokens(tokens, modifier_tk), 1);
+    let modifier_idx: usize = find_free_token(tokens, modifier_tk, 0).unwrap();
+
+    let identifier_node = parse_expr(&tokens[..modifier_idx]);
+
+    match identifier_node {
+        Node::Identifier(_) | Node::ArrayAccess(_, _) | Node::StructAccess(_, _) => {}
+        _ => panic!(
+            "INVALID IDENTIFIER NODE FOR MODIFIER BY: {:?}",
+            identifier_node
+        ),
+    }
+
+    let modifier = parse_expr(&tokens[modifier_idx + 1..tokens.len() - 1]);
+
+    match *modifier_tk {
+        Token::IncrementBy => Node::IncrementBy(identifier_node.to_box(), modifier.to_box()),
+        Token::DecrementBy => Node::DecrementBy(identifier_node.to_box(), modifier.to_box()),
+        Token::MultiplyBy => Node::MultiplyBy(identifier_node.to_box(), modifier.to_box()),
+        Token::DivideBy => Node::DivideBy(identifier_node.to_box(), modifier.to_box()),
+        _ => panic!("INVALID OPERATOR MODIFIER: {:?}", modifier_tk),
+    }
 }

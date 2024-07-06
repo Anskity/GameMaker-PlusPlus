@@ -1,3 +1,4 @@
+use crate::ast::OperatorType;
 use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -29,6 +30,11 @@ pub enum Token {
     SingleDecrement,
     Exclamation,
     Tilde,
+
+    IncrementBy,
+    DecrementBy,
+    MultiplyBy,
+    DivideBy,
 
     Function,
     Return,
@@ -144,6 +150,10 @@ impl SubstrRecognizer {
             ("~", Token::Tilde),
             ("++", Token::SingleIncrement),
             ("--", Token::SingleDecrement),
+            ("+=", Token::IncrementBy),
+            ("-=", Token::DecrementBy),
+            ("*=", Token::MultiplyBy),
+            ("/=", Token::DivideBy),
         ]);
 
         Self { char_map }

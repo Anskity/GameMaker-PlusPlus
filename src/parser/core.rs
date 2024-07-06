@@ -8,7 +8,7 @@ pub fn parse(tokens: &Vec<Token>) -> Node {
     let mut ptr: usize = 0;
 
     while ptr < tokens.len() {
-        let (new_node, consumed) = parse_stmt(tokens);
+        let (new_node, consumed) = parse_stmt(&tokens[ptr..]);
 
         assert!(consumed > 0);
 
