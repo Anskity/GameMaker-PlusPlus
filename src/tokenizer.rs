@@ -27,6 +27,8 @@ pub enum Token {
     BinaryOperator(char),
     SingleIncrement,
     SingleDecrement,
+    Exclamation,
+    Tilde,
 
     Function,
     Return,
@@ -39,6 +41,10 @@ pub enum Token {
     If,
     Else,
     With,
+
+    Var,
+    Const,
+    Let,
 
     EOF,
 }
@@ -71,11 +77,15 @@ impl TokenRecognizer for IdentifierRecognizer {
             "return" => Token::Return,
             "constructor" => Token::Constructor,
             "if" => Token::If,
+            "else" => Token::Else,
             "with" => Token::With,
             "while" => Token::While,
             "do" => Token::Do,
             "until" => Token::Until,
             "for" => Token::For,
+            "var" => Token::Var,
+            "const" => Token::Const,
+            "let" => Token::Let,
             _ => Token::Identifier(identifier),
         };
 
@@ -103,51 +113,62 @@ impl TokenRecognizer for SkippableRecognizer {
     }
 }
 
-struct SingleCharRecognizer {
-    char_map: std::collections::HashMap<char, Token>,
+struct SubstrRecognizer {
+    char_map: std::collections::HashMap<&'static str, Token>,
 }
-impl SingleCharRecognizer {
+impl SubstrRecognizer {
     fn new() -> Self {
-        let mut char_map = std::collections::HashMap::<char, Token>::new();
-        char_map.insert(';', Token::Semilicon);
-        char_map.insert('=', Token::Equals);
-        char_map.insert('+', Token::BinaryOperator('+'));
-        char_map.insert('-', Token::BinaryOperator('-'));
-        char_map.insert('*', Token::BinaryOperator('*'));
-        char_map.insert('/', Token::BinaryOperator('/'));
-        char_map.insert('(', Token::OpenParenthesis);
-        char_map.insert(')', Token::CloseParenthesis);
-        char_map.insert('{', Token::OpenCurly);
-        char_map.insert('}', Token::CloseCurly);
-        char_map.insert('[', Token::OpenBracket);
-        char_map.insert(']', Token::CloseBracket);
-        char_map.insert(',', Token::Comma);
-        char_map.insert('.', Token::Dot);
-        char_map.insert('<', Token::LessThan);
-        char_map.insert('>', Token::GreaterThan);
-        char_map.insert(':', Token::Colon);
-        char_map.insert('?', Token::QuestionMark);
-        char_map.insert('|', Token::Bar);
-        char_map.insert('#', Token::HashTag);
-        char_map.insert('$', Token::Dollar);
+        let char_map = std::collections::HashMap::<&str, Token>::from([
+            (";", Token::Semilicon),
+            ("=", Token::Equals),
+            ("+", Token::BinaryOperator('+')),
+            ("-", Token::BinaryOperator('-')),
+            ("*", Token::BinaryOperator('*')),
+            ("/", Token::BinaryOperator('/')),
+            ("(", Token::OpenParenthesis),
+            (")", Token::CloseParenthesis),
+            ("{", Token::OpenCurly),
+            ("}", Token::CloseCurly),
+            ("[", Token::OpenBracket),
+            ("]", Token::CloseBracket),
+            (",", Token::Comma),
+            (".", Token::Dot),
+            ("<", Token::LessThan),
+            (">", Token::GreaterThan),
+            (":", Token::Colon),
+            ("?", Token::QuestionMark),
+            ("|", Token::Bar),
+            ("#", Token::HashTag),
+            ("$", Token::Dollar),
+            ("!", Token::Exclamation),
+            ("~", Token::Tilde),
+            ("++", Token::SingleIncrement),
+            ("--", Token::SingleDecrement),
+        ]);
 
-        SingleCharRecognizer { char_map }
+        Self { char_map }
     }
 }
-impl TokenRecognizer for SingleCharRecognizer {
+
+impl TokenRecognizer for SubstrRecognizer {
     fn is_valid(&self, left_code: &str) -> bool {
         self.char_map
-            .contains_key(&left_code.chars().nth(0).unwrap())
+            .iter()
+            .any(|(key, _)| left_code.starts_with(key))
     }
 
     fn consume(&self, code_left: &str) -> TokenConsumeMessage {
-        let token: Token = self
-            .char_map
-            .get(&code_left.chars().next().unwrap())
-            .unwrap()
-            .clone();
+        let mut as_vec: Vec<(&str, Token)> = self.char_map.clone().into_iter().collect();
+        as_vec.sort_by(|(prev_key, _), (key, _)| key.len().cmp(&prev_key.len()));
 
-        TokenConsumeMessage(vec![token], 1)
+        let idx: usize = as_vec
+            .iter()
+            .position(|(key, _)| code_left.starts_with(key))
+            .unwrap();
+
+        let (key, token) = as_vec[idx].clone();
+
+        TokenConsumeMessage(vec![token], key.len())
     }
 }
 
@@ -240,7 +261,7 @@ pub fn tokenize(code: &&str) -> Vec<Token> {
     let recognizers: Vec<Box<dyn TokenRecognizer>> = vec![
         Box::new(IdentifierRecognizer {}),
         Box::new(SingleIncrementDecrementRecognizer {}),
-        Box::new(SingleCharRecognizer::new()),
+        Box::new(SubstrRecognizer::new()),
         Box::new(NumericLiteralRecognizer {}),
         Box::new(SkippableRecognizer {}),
         Box::new(StringRecognizer {}),

@@ -4,7 +4,7 @@ use gamemaker_plus::tokenizer::tokenize;
 use std::fs;
 
 fn main() {
-    expr_parsing_impl();
+    parsing_impl();
 }
 
 #[allow(dead_code)]
