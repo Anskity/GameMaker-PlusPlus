@@ -17,7 +17,8 @@ fn expr_parsing_impl() {
     };
 
     let tokens = tokenize(&code.as_str());
-    let syntax_tree = parse_expr(&tokens);
+
+    let syntax_tree = parse_expr(&tokens.to_vec());
 
     dbg!(syntax_tree);
 }

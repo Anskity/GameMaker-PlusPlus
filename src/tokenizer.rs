@@ -25,6 +25,10 @@ pub enum Token {
     String(String),
 
     BinaryOperator(char),
+    SingleIncrement,
+    SingleDecrement,
+    Exclamation,
+    Tilde,
 
     Function,
     Return,
@@ -35,28 +39,36 @@ pub enum Token {
     Loop,
     For,
     If,
+    Else,
     With,
+
+    Var,
+    Const,
+    Let,
+
+    EOF,
 }
 
 struct TokenConsumeMessage(Vec<Token>, usize); //(new_tokens, consumed_characters)
 
 trait TokenRecognizer {
-    fn is_valid(&self, current_char: &char) -> bool;
-    fn consume(&self, left_code: &&str) -> TokenConsumeMessage;
+    fn is_valid(&self, left_code: &str) -> bool;
+    fn consume(&self, left_code: &str) -> TokenConsumeMessage;
 }
 
 struct IdentifierRecognizer {}
 
 impl TokenRecognizer for IdentifierRecognizer {
-    fn is_valid(&self, current_char: &char) -> bool {
+    fn is_valid(&self, left_code: &str) -> bool {
+        let current_char: &char = &left_code.chars().nth(0).unwrap();
         (current_char.is_lowercase() != current_char.is_uppercase()) || *current_char == '_'
     }
 
-    fn consume(&self, code_left: &&str) -> TokenConsumeMessage {
+    fn consume(&self, code_left: &str) -> TokenConsumeMessage {
         let identifier: String = code_left
             .chars()
             .into_iter()
-            .take_while(|chr| self.is_valid(&chr) || chr.is_numeric())
+            .take_while(|chr| self.is_valid(chr.to_string().as_str()) || chr.is_numeric())
             .collect();
         let consumed = identifier.chars().count();
 
@@ -65,11 +77,15 @@ impl TokenRecognizer for IdentifierRecognizer {
             "return" => Token::Return,
             "constructor" => Token::Constructor,
             "if" => Token::If,
+            "else" => Token::Else,
             "with" => Token::With,
             "while" => Token::While,
             "do" => Token::Do,
             "until" => Token::Until,
             "for" => Token::For,
+            "var" => Token::Var,
+            "const" => Token::Const,
+            "let" => Token::Let,
             _ => Token::Identifier(identifier),
         };
 
@@ -79,80 +95,94 @@ impl TokenRecognizer for IdentifierRecognizer {
 
 struct SkippableRecognizer {}
 impl TokenRecognizer for SkippableRecognizer {
-    fn is_valid(&self, chr: &char) -> bool {
-        [' ', '\t', '\n'].iter().any(|skchr| skchr == chr)
+    fn is_valid(&self, left_code: &str) -> bool {
+        [' ', '\t', '\n']
+            .iter()
+            .any(|skchr| *skchr == left_code.chars().nth(0).unwrap())
     }
 
-    fn consume(&self, code_left: &&str) -> TokenConsumeMessage {
+    fn consume(&self, code_left: &str) -> TokenConsumeMessage {
         TokenConsumeMessage(
             Vec::new(),
             code_left
                 .chars()
                 .into_iter()
-                .take_while(|code_char| self.is_valid(&code_char))
+                .take_while(|code_char| self.is_valid(code_char.to_string().as_str()))
                 .count(),
         )
     }
 }
 
-struct SingleCharRecognizer {
-    char_map: std::collections::HashMap<char, Token>,
+struct SubstrRecognizer {
+    char_map: std::collections::HashMap<&'static str, Token>,
 }
-impl SingleCharRecognizer {
+impl SubstrRecognizer {
     fn new() -> Self {
-        let mut char_map = std::collections::HashMap::<char, Token>::new();
-        char_map.insert(';', Token::Semilicon);
-        char_map.insert('=', Token::Equals);
-        char_map.insert('+', Token::BinaryOperator('+'));
-        char_map.insert('-', Token::BinaryOperator('-'));
-        char_map.insert('*', Token::BinaryOperator('*'));
-        char_map.insert('/', Token::BinaryOperator('/'));
-        char_map.insert('(', Token::OpenParenthesis);
-        char_map.insert(')', Token::CloseParenthesis);
-        char_map.insert('{', Token::OpenCurly);
-        char_map.insert('}', Token::CloseCurly);
-        char_map.insert('[', Token::OpenBracket);
-        char_map.insert(']', Token::CloseBracket);
-        char_map.insert(',', Token::Comma);
-        char_map.insert('.', Token::Dot);
-        char_map.insert('<', Token::LessThan);
-        char_map.insert('>', Token::GreaterThan);
-        char_map.insert(':', Token::Colon);
-        char_map.insert('?', Token::QuestionMark);
-        char_map.insert('|', Token::Bar);
-        char_map.insert('#', Token::HashTag);
-        char_map.insert('$', Token::Dollar);
+        let char_map = std::collections::HashMap::<&str, Token>::from([
+            (";", Token::Semilicon),
+            ("=", Token::Equals),
+            ("+", Token::BinaryOperator('+')),
+            ("-", Token::BinaryOperator('-')),
+            ("*", Token::BinaryOperator('*')),
+            ("/", Token::BinaryOperator('/')),
+            ("(", Token::OpenParenthesis),
+            (")", Token::CloseParenthesis),
+            ("{", Token::OpenCurly),
+            ("}", Token::CloseCurly),
+            ("[", Token::OpenBracket),
+            ("]", Token::CloseBracket),
+            (",", Token::Comma),
+            (".", Token::Dot),
+            ("<", Token::LessThan),
+            (">", Token::GreaterThan),
+            (":", Token::Colon),
+            ("?", Token::QuestionMark),
+            ("|", Token::Bar),
+            ("#", Token::HashTag),
+            ("$", Token::Dollar),
+            ("!", Token::Exclamation),
+            ("~", Token::Tilde),
+            ("++", Token::SingleIncrement),
+            ("--", Token::SingleDecrement),
+        ]);
 
-        SingleCharRecognizer { char_map }
+        Self { char_map }
     }
 }
-impl TokenRecognizer for SingleCharRecognizer {
-    fn is_valid(&self, chr: &char) -> bool {
-        self.char_map.contains_key(&chr)
+
+impl TokenRecognizer for SubstrRecognizer {
+    fn is_valid(&self, left_code: &str) -> bool {
+        self.char_map
+            .iter()
+            .any(|(key, _)| left_code.starts_with(key))
     }
 
-    fn consume(&self, code_left: &&str) -> TokenConsumeMessage {
-        let token: Token = self
-            .char_map
-            .get(&code_left.chars().next().unwrap())
-            .unwrap()
-            .clone();
+    fn consume(&self, code_left: &str) -> TokenConsumeMessage {
+        let mut as_vec: Vec<(&str, Token)> = self.char_map.clone().into_iter().collect();
+        as_vec.sort_by(|(prev_key, _), (key, _)| key.len().cmp(&prev_key.len()));
 
-        TokenConsumeMessage(vec![token], 1)
+        let idx: usize = as_vec
+            .iter()
+            .position(|(key, _)| code_left.starts_with(key))
+            .unwrap();
+
+        let (key, token) = as_vec[idx].clone();
+
+        TokenConsumeMessage(vec![token], key.len())
     }
 }
 
 struct NumericLiteralRecognizer;
 impl TokenRecognizer for NumericLiteralRecognizer {
-    fn is_valid(&self, chr: &char) -> bool {
-        chr.is_numeric()
+    fn is_valid(&self, left_code: &str) -> bool {
+        left_code.chars().nth(0).unwrap().is_numeric()
     }
 
-    fn consume(&self, code_left: &&str) -> TokenConsumeMessage {
+    fn consume(&self, code_left: &str) -> TokenConsumeMessage {
         let identifier: String = code_left
             .chars()
             .into_iter()
-            .take_while(|chr| self.is_valid(&chr))
+            .take_while(|chr| self.is_valid(chr.to_string().as_str()))
             .collect();
         let consumed: usize = identifier.chars().count();
 
@@ -167,10 +197,10 @@ impl TokenRecognizer for NumericLiteralRecognizer {
 
 struct StringRecognizer {}
 impl TokenRecognizer for StringRecognizer {
-    fn is_valid(&self, current_char: &char) -> bool {
-        *current_char == '"'
+    fn is_valid(&self, current_char: &str) -> bool {
+        current_char.chars().nth(0).unwrap() == '"'
     }
-    fn consume(&self, left_code: &&str) -> TokenConsumeMessage {
+    fn consume(&self, left_code: &str) -> TokenConsumeMessage {
         let mut qmark_count = 0 as usize;
         let mut txt_range: Option<Range<usize>> = None;
         let mut consumed: Option<usize> = None;
@@ -201,12 +231,37 @@ impl TokenRecognizer for StringRecognizer {
     }
 }
 
+struct SingleIncrementDecrementRecognizer;
+impl TokenRecognizer for SingleIncrementDecrementRecognizer {
+    fn is_valid(&self, left_code: &str) -> bool {
+        match (
+            left_code.chars().nth(0).unwrap(),
+            left_code.chars().nth(1).unwrap_or('\0'),
+        ) {
+            ('+', '+') | ('-', '-') => true,
+            _ => false,
+        }
+    }
+
+    fn consume(&self, left_code: &str) -> TokenConsumeMessage {
+        match (
+            left_code.chars().nth(0).unwrap(),
+            left_code.chars().nth(1).unwrap_or('\0'),
+        ) {
+            ('+', '+') => TokenConsumeMessage(vec![Token::SingleIncrement], 2),
+            ('-', '-') => TokenConsumeMessage(vec![Token::SingleDecrement], 2),
+            _ => panic!("COULDNT CONSUME SINGLE INCREMENT/DECREMENT"),
+        }
+    }
+}
+
 pub fn tokenize(code: &&str) -> Vec<Token> {
     let mut ptr: usize = 0;
     let mut tokens = Vec::<Token>::new();
     let recognizers: Vec<Box<dyn TokenRecognizer>> = vec![
         Box::new(IdentifierRecognizer {}),
-        Box::new(SingleCharRecognizer::new()),
+        Box::new(SingleIncrementDecrementRecognizer {}),
+        Box::new(SubstrRecognizer::new()),
         Box::new(NumericLiteralRecognizer {}),
         Box::new(SkippableRecognizer {}),
         Box::new(StringRecognizer {}),
@@ -220,7 +275,7 @@ pub fn tokenize(code: &&str) -> Vec<Token> {
 
         let token_match = recognizers
             .iter()
-            .find(|recognizer| recognizer.is_valid(&chr));
+            .find(|recognizer| recognizer.is_valid(&code[ptr..]));
 
         let code_left = &code[ptr..];
         let consume_message = token_match
