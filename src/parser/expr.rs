@@ -1,4 +1,5 @@
 use crate::ast::Node;
+use crate::ast::OperatorType;
 use crate::code_container::CodeContainerManager;
 use crate::parser::core::parse;
 use crate::parser_macros::*;
@@ -8,47 +9,48 @@ use std::ops::Range;
 use std::ops::RangeInclusive;
 
 pub fn get_avaible_tokens_for_expr(tokens: &[Token]) -> usize {
-    let mut code_manager = CodeContainerManager::new();
-
-    let mut first_iteration = true;
-
-    let mut length: usize = 1;
-
-    for (prev_tk, current_tk) in tokens.iter().zip(tokens.iter().skip(1)) {
-        if first_iteration {
-            code_manager.check(prev_tk);
-            first_iteration = false;
-        }
-
-        let is_safe = code_manager.is_safe(current_tk);
-
-        if !is_safe {
-            break;
-        }
-
-        if let (Token::Identifier(_), Token::Identifier(_)) = (prev_tk, current_tk) {
-            break;
-        }
-        if let (Token::NumericLiteral(_), Token::NumericLiteral(_)) = (prev_tk, current_tk) {
-            break;
-        }
-
-        if code_manager.is_free()
-            && (*prev_tk == Token::CloseCurly
-                || *prev_tk == Token::CloseBracket
-                || *prev_tk == Token::CloseParenthesis)
-        {
-            match *current_tk {
-                Token::Identifier(_) | Token::NumericLiteral(_) => break,
-                _ => {}
-            }
-        }
-
-        length += 1;
-        code_manager.check(current_tk);
-    }
-
-    length
+    tokens.len()
+    //let mut code_manager = CodeContainerManager::new();
+    //
+    //let mut first_iteration = true;
+    //
+    //let mut length: usize = 1;
+    //
+    //for (prev_tk, current_tk) in tokens.iter().zip(tokens.iter().skip(1)) {
+    //    if first_iteration {
+    //        code_manager.check(prev_tk);
+    //        first_iteration = false;
+    //    }
+    //
+    //    let is_safe = code_manager.is_safe(current_tk);
+    //
+    //    if !is_safe {
+    //        break;
+    //    }
+    //
+    //    if let (Token::Identifier(_), Token::Identifier(_)) = (prev_tk, current_tk) {
+    //        break;
+    //    }
+    //    if let (Token::NumericLiteral(_), Token::NumericLiteral(_)) = (prev_tk, current_tk) {
+    //        break;
+    //    }
+    //
+    //    if code_manager.is_free()
+    //        && (*prev_tk == Token::CloseCurly
+    //            || *prev_tk == Token::CloseBracket
+    //            || *prev_tk == Token::CloseParenthesis)
+    //    {
+    //        match *current_tk {
+    //            Token::Identifier(_) | Token::NumericLiteral(_) => break,
+    //            _ => {}
+    //        }
+    //    }
+    //
+    //    length += 1;
+    //    code_manager.check(current_tk);
+    //}
+    //
+    //length
 }
 
 pub fn parse_struct_access(struct_id: Node, tokens: &[Token]) -> Node {
@@ -209,16 +211,17 @@ pub fn parse_ternary(tokens: &[Token]) -> Node {
 }
 pub fn parse_function_call(func_node: Node, argument_tokens: &[Token]) -> Node {
     assert_eq!(*argument_tokens.first().unwrap(), Token::OpenParenthesis);
-    assert_eq!(*argument_tokens.last().unwrap(), Token::CloseParenthesis);
+    let close_parenthesis = find_pair_container(argument_tokens, 0).unwrap();
 
     let mut container_manager = CodeContainerManager::new();
     //let mut arguments: Vec<Box<Node>> = Vec::new();
     let mut last_ptr: usize = 1;
 
     let mut argument_ranges: Vec<Range<usize>> = Vec::new();
+    let fixed_argument_tokens = &argument_tokens[0..=close_parenthesis];
 
     split_tokens!(
-        argument_tokens,
+        fixed_argument_tokens,
         container_manager,
         Token::Comma,
         last_ptr,
@@ -231,7 +234,13 @@ pub fn parse_function_call(func_node: Node, argument_tokens: &[Token]) -> Node {
         arguments.push(expr.to_box());
     }
 
-    Node::FunctionCall(func_node.to_box(), arguments)
+    if fixed_argument_tokens.len() == argument_tokens.len() {
+        Node::FunctionCall(func_node.to_box(), arguments)
+    } else {
+        let call_node = Node::FunctionCall(func_node.to_box(), arguments);
+        let extra_range = (fixed_argument_tokens.len())..;
+        parse_function_call(call_node, &argument_tokens[extra_range])
+    }
 }
 pub fn parse_expr(tokens: &[Token]) -> Node {
     if find_free_token(tokens, &Token::QuestionMark, 0).is_some()
@@ -242,7 +251,7 @@ pub fn parse_expr(tokens: &[Token]) -> Node {
 
     let tokens = &tokens[..get_avaible_tokens_for_expr(tokens)];
 
-    let (ranges, idxs) = parse_expr_components(tokens, vec!['+', '-', '*', '/']);
+    let (ranges, idxs) = parse_expr_components(tokens);
 
     let mut components: Vec<Node> = Vec::new();
 
@@ -258,18 +267,47 @@ pub fn parse_expr(tokens: &[Token]) -> Node {
         insert_idx_buff += 1;
     }
 
-    parse_operators_on_components(&mut components, vec!['*', '/']);
-    parse_operators_on_components(&mut components, vec!['+', '-']);
+    parse_operators_on_components(&mut components, &[OperatorType::Mul, OperatorType::Div]);
+    parse_operators_on_components(&mut components, &[OperatorType::Add, OperatorType::Sub]);
+    parse_operators_on_components(
+        &mut components,
+        &[
+            OperatorType::BitwiseShiftRight,
+            OperatorType::BitwiseShiftLeft,
+        ],
+    );
+    parse_operators_on_components(
+        &mut components,
+        &[
+            OperatorType::Lt,
+            OperatorType::Gt,
+            OperatorType::LtE,
+            OperatorType::GtE,
+        ],
+    );
+    parse_operators_on_components(
+        &mut components,
+        &[OperatorType::Equals, OperatorType::NotEquals],
+    );
+    parse_operators_on_components(
+        &mut components,
+        &[
+            OperatorType::BitwiseAnd,
+            OperatorType::BitwiseXor,
+            OperatorType::BitwiseOr,
+        ],
+    );
+    parse_operators_on_components(
+        &mut components,
+        &[OperatorType::And, OperatorType::Or, OperatorType::Xor],
+    );
 
     assert_eq!(components.len(), 1);
 
     components.remove(0)
 }
 
-pub fn parse_expr_components(
-    tokens: &[Token],
-    search_operators: Vec<char>,
-) -> (Vec<RangeInclusive<usize>>, Vec<usize>) {
+pub fn parse_expr_components(tokens: &[Token]) -> (Vec<RangeInclusive<usize>>, Vec<usize>) {
     let mut ranges = Vec::<RangeInclusive<usize>>::new();
     let mut oprts_idx = Vec::<usize>::new();
     let mut container_manager = CodeContainerManager::new();
@@ -280,12 +318,8 @@ pub fn parse_expr_components(
         let iptr = ptr as isize;
         container_manager.check(tk);
 
-        if let Token::BinaryOperator(chr) = *tk {
-            if container_manager.is_free()
-                && (search_operators.contains(&chr))
-                && !just_hit_operator
-                && ptr != 0
-            {
+        if let Token::BinaryOperator(_) = tk {
+            if container_manager.is_free() && !just_hit_operator && ptr != 0 {
                 let new_range = (last_ptr as usize)..=((iptr - 1) as usize);
                 ranges.push(new_range);
                 oprts_idx.push(iptr.clone() as usize);
@@ -325,9 +359,9 @@ pub fn parse_component(component: &[Token]) -> Node {
         return parse_anonymous_function(component);
     }
 
-    if let Token::BinaryOperator(chr) = first.unwrap() {
-        return match *chr {
-            '-' => Node::Neg(parse_expr(&component[1..]).to_box()),
+    if let Token::BinaryOperator(operator_type) = first.unwrap() {
+        return match *operator_type {
+            OperatorType::Sub => Node::Neg(parse_expr(&component[1..]).to_box()),
             _ => panic!("FOUND INVALID FIRST OPERATOR IN COMPONENT: {:?}", component),
         };
     }
@@ -442,16 +476,15 @@ pub fn parse_operator(tk: &Token) -> Node {
     }
 }
 
-pub fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: Vec<char>) {
+pub fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: &[OperatorType]) {
     let mut ptr = 0 as usize;
 
     while ptr < nodes.len() {
-        if let Node::BinaryOperator(chr) = nodes[ptr] {
+        if let Node::BinaryOperator(chr) = nodes[ptr].clone() {
             if search_operators.contains(&chr) {
-                let mut operation: Vec<Node> = nodes.drain((ptr - 1)..=(ptr + 1)).collect();
-
-                let left = operation.remove(0);
-                let right = operation.remove(1);
+                let left = nodes.remove(ptr - 1);
+                nodes.remove(ptr - 1);
+                let right = nodes.remove(ptr - 1);
                 let binary_expr = Node::BinaryExpr(left.to_box(), chr.clone(), right.to_box());
                 nodes.insert(ptr - 1, binary_expr);
             } else {

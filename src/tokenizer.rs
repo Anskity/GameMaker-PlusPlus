@@ -1,5 +1,7 @@
 use std::ops::Range;
 
+use crate::ast::OperatorType;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     OpenParenthesis,
@@ -13,8 +15,6 @@ pub enum Token {
     Colon,
     QuestionMark,
     Equals,
-    GreaterThan,
-    LessThan,
     Semilicon,
     Bar,
     HashTag,
@@ -24,7 +24,7 @@ pub enum Token {
     NumericLiteral(u32),
     String(String),
 
-    BinaryOperator(char),
+    BinaryOperator(OperatorType),
     SingleIncrement,
     SingleDecrement,
     Exclamation,
@@ -126,10 +126,24 @@ impl SubstrRecognizer {
         let char_map = std::collections::HashMap::<&str, Token>::from([
             (";", Token::Semilicon),
             ("=", Token::Equals),
-            ("+", Token::BinaryOperator('+')),
-            ("-", Token::BinaryOperator('-')),
-            ("*", Token::BinaryOperator('*')),
-            ("/", Token::BinaryOperator('/')),
+            ("+", Token::BinaryOperator(OperatorType::Add)),
+            ("-", Token::BinaryOperator(OperatorType::Sub)),
+            ("*", Token::BinaryOperator(OperatorType::Mul)),
+            ("/", Token::BinaryOperator(OperatorType::Div)),
+            (">", Token::BinaryOperator(OperatorType::Gt)),
+            ("<", Token::BinaryOperator(OperatorType::Lt)),
+            (">=", Token::BinaryOperator(OperatorType::GtE)),
+            ("<=", Token::BinaryOperator(OperatorType::LtE)),
+            ("==", Token::BinaryOperator(OperatorType::Equals)),
+            ("!=", Token::BinaryOperator(OperatorType::NotEquals)),
+            ("&&", Token::BinaryOperator(OperatorType::And)),
+            ("||", Token::BinaryOperator(OperatorType::Or)),
+            ("^^", Token::BinaryOperator(OperatorType::Xor)),
+            (">>", Token::BinaryOperator(OperatorType::BitwiseShiftRight)),
+            ("<<", Token::BinaryOperator(OperatorType::BitwiseShiftLeft)),
+            ("&", Token::BinaryOperator(OperatorType::BitwiseAnd)),
+            ("|", Token::BinaryOperator(OperatorType::BitwiseOr)),
+            ("^", Token::BinaryOperator(OperatorType::BitwiseXor)),
             ("(", Token::OpenParenthesis),
             (")", Token::CloseParenthesis),
             ("{", Token::OpenCurly),
@@ -138,8 +152,6 @@ impl SubstrRecognizer {
             ("]", Token::CloseBracket),
             (",", Token::Comma),
             (".", Token::Dot),
-            ("<", Token::LessThan),
-            (">", Token::GreaterThan),
             (":", Token::Colon),
             ("?", Token::QuestionMark),
             ("|", Token::Bar),

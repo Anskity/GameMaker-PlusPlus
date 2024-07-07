@@ -1,10 +1,2 @@
-foo = function(a, b=false) {
-    const c = 1;
-
-    if (a + c) {
-        ERROR.push(error_new());
-        return;
-    }
-
-    return a+b;
-}
+var rain = weather("rain");
+rain.to("congrats")().execute([1, 2]);
