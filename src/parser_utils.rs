@@ -1,4 +1,9 @@
+use crate::ast::Node;
+use crate::parser::expr::parse_expr;
+use crate::parser_macros::*;
 use crate::{code_container::CodeContainerManager, tokenizer::Token};
+use std::ops::Range;
+
 pub fn amount_of_tokens(tokens: &[Token], search: &Token) -> usize {
     let mut container_manager = CodeContainerManager::new();
     let mut count: usize = 0;
@@ -72,4 +77,25 @@ pub fn find_pair_container(tokens: &[Token], idx: usize) -> Option<usize> {
     }
 
     None
+}
+pub fn parse_function_paremeters(tokens: &[Token]) -> Vec<Box<Node>> {
+    assert_eq!(tokens[0], Token::OpenParenthesis);
+    assert_eq!(*tokens.last().unwrap(), Token::CloseParenthesis);
+    let mut parameter_ranges: Vec<Range<usize>> = Vec::new();
+    let mut code_container = CodeContainerManager::new();
+    let mut last_ptr = 1usize;
+    split_tokens!(
+        tokens,
+        code_container,
+        Token::Comma,
+        last_ptr,
+        parameter_ranges
+    );
+
+    let parameter_nodes: Vec<Box<Node>> = parameter_ranges
+        .into_iter()
+        .map(|range| parse_expr(&tokens[range]).to_box())
+        .collect();
+
+    parameter_nodes
 }

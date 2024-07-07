@@ -1,2 +1,3 @@
-pub mod type_check;
 pub mod core;
+pub mod error;
+pub mod type_check;

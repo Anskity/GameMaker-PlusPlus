@@ -14,6 +14,7 @@ pub enum Node {
     DecrementBy(Box<Node>, Box<Node>),
     MultiplyBy(Box<Node>, Box<Node>),
     DivideBy(Box<Node>, Box<Node>),
+    FunctionDeclaration(String, Vec<Box<Node>>, Box<Node>),
 
     //Symbols
     BinaryOperator(char),

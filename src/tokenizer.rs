@@ -1,4 +1,3 @@
-use crate::ast::OperatorType;
 use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq)]
