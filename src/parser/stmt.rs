@@ -226,15 +226,29 @@ fn parse_function_declaration(tokens: &[Token]) -> (Node, usize) {
     let close_parenthesis = find_pair_container(tokens, 2)
         .expect("NO PAIR PARENTHESIS WHEN PARSING FUNCTION DECLARATION");
     assert_eq!(tokens[close_parenthesis], Token::CloseParenthesis);
-    assert_eq!(tokens[close_parenthesis + 1], Token::OpenCurly);
-    let close_curly = find_pair_container(tokens, close_parenthesis + 1)
+    let (is_constructor, curly_idx) = match tokens[close_parenthesis + 1] {
+        Token::OpenCurly => (false, close_parenthesis + 1),
+        Token::Constructor => {
+            assert_eq!(tokens[close_parenthesis + 2], Token::OpenCurly);
+            (true, close_parenthesis + 2)
+        }
+        _ => panic!(
+            "Invalid token after parenthesis while tokenizing function declaration: {:?}",
+            tokens[close_parenthesis + 1]
+        ),
+    };
+    let close_curly = find_pair_container(tokens, curly_idx)
         .expect("NO PAIR CURLY BRACE WHEN PARSING FUNCTION DECLARATION");
 
     let params = parse_function_paremeters(&tokens[2..=close_parenthesis]);
-    let program = parse(&tokens[close_parenthesis + 2..close_curly].to_vec());
+    let program = parse(&tokens[curly_idx + 1..close_curly].to_vec());
 
     (
-        Node::FunctionDeclaration(identifier, params, program.to_box()),
+        if is_constructor {
+            Node::FunctionConstructorDeclaration(identifier, params, program.to_box())
+        } else {
+            Node::FunctionDeclaration(identifier, params, program.to_box())
+        },
         close_curly + 1,
     )
 }

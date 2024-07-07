@@ -1,2 +1,7 @@
-var rain = weather("rain");
-rain.to("congrats")().execute([1, 2]);
+/***
+  * @desc Basically show_message, but with a default message
+  * @param {String} [msg] The message to show
+  
+function alert(msg="HELLO") {
+    show_message(msg);
+}

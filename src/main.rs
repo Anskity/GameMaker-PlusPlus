@@ -14,6 +14,7 @@ fn main() {
     };
 
     let tokens = tokenize(&code);
+    println!("{:?}", tokens);
     let ast = parse(&tokens);
 
     dbg!(ast);

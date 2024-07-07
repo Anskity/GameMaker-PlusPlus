@@ -294,6 +294,25 @@ pub fn tokenize(code: &str) -> Vec<Token> {
             .nth(ptr)
             .expect("ERROR GETTING CHARACTER IN CODE");
 
+        if chr == '/' && code.chars().nth(ptr + 1).is_some_and(|c| c == '/') {
+            while !code.chars().nth(ptr).is_some_and(|c| c == '\n') {
+                ptr += 1;
+            }
+            continue;
+        }
+
+        if chr == '/' && code.chars().nth(ptr + 1).is_some_and(|c| c == '*') {
+            ptr += 2;
+            while !(code.chars().nth(ptr - 1).is_some_and(|c| c == '*')
+                && code.chars().nth(ptr).is_some_and(|c| c == '/'))
+                && ptr < code.len()
+            {
+                ptr += 1;
+            }
+            ptr += 1;
+            continue;
+        }
+
         let token_match = recognizers
             .iter()
             .find(|recognizer| recognizer.is_valid(&code[ptr..]));
