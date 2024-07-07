@@ -94,7 +94,38 @@ pub fn parse_function_paremeters(tokens: &[Token]) -> Vec<Box<Node>> {
 
     let parameter_nodes: Vec<Box<Node>> = parameter_ranges
         .into_iter()
-        .map(|range| parse_expr(&tokens[range]).to_box())
+        .map(|range| {
+            let tokens = &tokens[range];
+            if tokens.len() == 1 {
+                match &tokens[0] {
+                    Token::Identifier(id) => {
+                        return Node::FunctionParemeter(
+                            Node::Identifier(id.clone()).to_box(),
+                            None,
+                        )
+                        .to_box();
+                    }
+                    _ => panic!("INVALID PARAMETER: {:?}", tokens),
+                }
+            } else if tokens.len() > 2 {
+                match (&tokens[0], &tokens[1]) {
+                    (Token::Identifier(id), Token::Equals) => {
+                        let identifier = Node::Identifier(id.clone());
+                        assert_eq!(tokens[1], Token::Equals);
+                        let default_value: Node = parse_expr(&tokens[2..]);
+
+                        return Node::FunctionParemeter(
+                            identifier.to_box(),
+                            Some(default_value.to_box()),
+                        )
+                        .to_box();
+                    }
+                    _ => panic!("INVALID PAREMETER: {:?}", tokens),
+                }
+            } else {
+                panic!("INVALID PARAMETER: {:?}", tokens)
+            }
+        })
         .collect();
 
     parameter_nodes

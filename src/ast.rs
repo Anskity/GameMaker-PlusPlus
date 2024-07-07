@@ -37,7 +37,7 @@ pub enum Node {
     ArrayAccess(Box<Node>, Box<Node>),
     ArrayConstructor(Vec<Box<Node>>),
     FunctionCall(Box<Node>, Vec<Box<Node>>),
-    FunctionParemeter(Box<Node>),
+    FunctionParemeter(Box<Node>, Option<Box<Node>>),
     AnonymousFunctionDeclaration(Vec<Box<Node>>, Box<Node>),
     Struct(Vec<Box<Node>>),
     StructAttribute(Box<Node>, Box<Node>),
