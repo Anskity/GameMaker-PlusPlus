@@ -14,6 +14,8 @@ pub enum Node {
     DecrementBy(Box<Node>, Box<Node>),
     MultiplyBy(Box<Node>, Box<Node>),
     DivideBy(Box<Node>, Box<Node>),
+    FunctionDeclaration(String, Vec<Box<Node>>, Box<Node>),
+    Return(Option<Box<Node>>),
 
     //Symbols
     BinaryOperator(char),
@@ -36,7 +38,7 @@ pub enum Node {
     ArrayAccess(Box<Node>, Box<Node>),
     ArrayConstructor(Vec<Box<Node>>),
     FunctionCall(Box<Node>, Vec<Box<Node>>),
-    FunctionParemeter(Box<Node>),
+    FunctionParemeter(Box<Node>, Option<Box<Node>>),
     AnonymousFunctionDeclaration(Vec<Box<Node>>, Box<Node>),
     Struct(Vec<Box<Node>>),
     StructAttribute(Box<Node>, Box<Node>),

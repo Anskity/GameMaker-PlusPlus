@@ -1,4 +1,3 @@
-use crate::ast::OperatorType;
 use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -265,7 +264,7 @@ impl TokenRecognizer for SingleIncrementDecrementRecognizer {
     }
 }
 
-pub fn tokenize(code: &&str) -> Vec<Token> {
+pub fn tokenize(code: &str) -> Vec<Token> {
     let mut ptr: usize = 0;
     let mut tokens = Vec::<Token>::new();
     let recognizers: Vec<Box<dyn TokenRecognizer>> = vec![

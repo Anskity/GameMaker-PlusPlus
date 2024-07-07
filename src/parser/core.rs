@@ -1,5 +1,4 @@
 use crate::ast::Node;
-#[allow(unused_imports)]
 use crate::parser::stmt::parse_stmt;
 use crate::tokenizer::Token;
 

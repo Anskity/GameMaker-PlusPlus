@@ -1,11 +1,11 @@
 use crate::ast::DeclarationType;
 use crate::ast::Node;
-use crate::ast::OperatorType;
 use crate::parser::core::parse;
 use crate::parser::expr::{get_avaible_tokens_for_expr, parse_expr};
 use crate::parser_utils::amount_of_tokens;
 use crate::parser_utils::find_free_token;
 use crate::parser_utils::find_pair_container;
+use crate::parser_utils::parse_function_paremeters;
 use crate::tokenizer::Token;
 
 pub fn parse_stmt(tokens: &[Token]) -> (Node, usize) {
@@ -19,6 +19,10 @@ pub fn parse_stmt(tokens: &[Token]) -> (Node, usize) {
 
     if let Token::Do = tokens[0] {
         return parse_do_statement(tokens);
+    }
+
+    if let Token::Function = tokens[0] {
+        return parse_function_declaration(tokens);
     }
 
     let semilicon_idx = find_free_token(tokens, &Token::Semilicon, 0);
@@ -40,6 +44,14 @@ pub fn parse_stmt(tokens: &[Token]) -> (Node, usize) {
 
     if semilicon_idx.is_some() {
         let semilicon_idx = semilicon_idx.unwrap();
+
+        if let Token::Return = tokens[0] {
+            return (
+                parse_return_statement(&tokens[0..=semilicon_idx]),
+                semilicon_idx + 1,
+            );
+        }
+
         assert!(tokens.len() > 2);
 
         const MODIFIER_TKS: [Token; 4] = [
@@ -197,5 +209,42 @@ fn parse_modifier_by(tokens: &[Token], modifier_tk: &Token) -> Node {
         Token::MultiplyBy => Node::MultiplyBy(identifier_node.to_box(), modifier.to_box()),
         Token::DivideBy => Node::DivideBy(identifier_node.to_box(), modifier.to_box()),
         _ => panic!("INVALID OPERATOR MODIFIER: {:?}", modifier_tk),
+    }
+}
+
+fn parse_function_declaration(tokens: &[Token]) -> (Node, usize) {
+    assert_eq!(tokens[0], Token::Function);
+
+    let identifier = match &tokens[1] {
+        Token::Identifier(id) => id.clone(),
+        _ => panic!("TOKEN AFTER FUNCTION TOKEN ISNT AN IDENTIFIER TOKEN"),
+    };
+
+    assert_eq!(tokens[2], Token::OpenParenthesis);
+    let close_parenthesis = find_pair_container(tokens, 2)
+        .expect("NO PAIR PARENTHESIS WHEN PARSING FUNCTION DECLARATION");
+    assert_eq!(tokens[close_parenthesis], Token::CloseParenthesis);
+    assert_eq!(tokens[close_parenthesis + 1], Token::OpenCurly);
+    let close_curly = find_pair_container(tokens, close_parenthesis + 1)
+        .expect("NO PAIR CURLY BRACE WHEN PARSING FUNCTION DECLARATION");
+
+    let params = parse_function_paremeters(&tokens[2..=close_parenthesis]);
+    let program = parse(&tokens[close_parenthesis + 2..close_curly].to_vec());
+
+    (
+        Node::FunctionDeclaration(identifier, params, program.to_box()),
+        close_curly + 1,
+    )
+}
+
+fn parse_return_statement(tokens: &[Token]) -> Node {
+    assert_eq!(tokens[0], Token::Return);
+    assert_eq!(*tokens.last().unwrap(), Token::Semilicon);
+
+    if tokens.len() > 2 {
+        let value = parse_expr(&tokens[1..tokens.len() - 1]);
+        Node::Return(Some(value.to_box()))
+    } else {
+        Node::Return(None)
     }
 }

@@ -1,4 +1,9 @@
+use crate::ast::Node;
+use crate::parser::expr::parse_expr;
+use crate::parser_macros::*;
 use crate::{code_container::CodeContainerManager, tokenizer::Token};
+use std::ops::Range;
+
 pub fn amount_of_tokens(tokens: &[Token], search: &Token) -> usize {
     let mut container_manager = CodeContainerManager::new();
     let mut count: usize = 0;
@@ -72,4 +77,56 @@ pub fn find_pair_container(tokens: &[Token], idx: usize) -> Option<usize> {
     }
 
     None
+}
+pub fn parse_function_paremeters(tokens: &[Token]) -> Vec<Box<Node>> {
+    assert_eq!(tokens[0], Token::OpenParenthesis);
+    assert_eq!(*tokens.last().unwrap(), Token::CloseParenthesis);
+    let mut parameter_ranges: Vec<Range<usize>> = Vec::new();
+    let mut code_container = CodeContainerManager::new();
+    let mut last_ptr = 1usize;
+    split_tokens!(
+        tokens,
+        code_container,
+        Token::Comma,
+        last_ptr,
+        parameter_ranges
+    );
+
+    let parameter_nodes: Vec<Box<Node>> = parameter_ranges
+        .into_iter()
+        .map(|range| {
+            let tokens = &tokens[range];
+            if tokens.len() == 1 {
+                match &tokens[0] {
+                    Token::Identifier(id) => {
+                        return Node::FunctionParemeter(
+                            Node::Identifier(id.clone()).to_box(),
+                            None,
+                        )
+                        .to_box();
+                    }
+                    _ => panic!("INVALID PARAMETER: {:?}", tokens),
+                }
+            } else if tokens.len() > 2 {
+                match (&tokens[0], &tokens[1]) {
+                    (Token::Identifier(id), Token::Equals) => {
+                        let identifier = Node::Identifier(id.clone());
+                        assert_eq!(tokens[1], Token::Equals);
+                        let default_value: Node = parse_expr(&tokens[2..]);
+
+                        return Node::FunctionParemeter(
+                            identifier.to_box(),
+                            Some(default_value.to_box()),
+                        )
+                        .to_box();
+                    }
+                    _ => panic!("INVALID PAREMETER: {:?}", tokens),
+                }
+            } else {
+                panic!("INVALID PARAMETER: {:?}", tokens)
+            }
+        })
+        .collect();
+
+    parameter_nodes
 }
