@@ -15,6 +15,7 @@ pub enum Node {
     MultiplyBy(Box<Node>, Box<Node>),
     DivideBy(Box<Node>, Box<Node>),
     FunctionDeclaration(String, Vec<Box<Node>>, Box<Node>),
+    Return(Option<Box<Node>>),
 
     //Symbols
     BinaryOperator(char),

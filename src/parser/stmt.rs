@@ -44,6 +44,14 @@ pub fn parse_stmt(tokens: &[Token]) -> (Node, usize) {
 
     if semilicon_idx.is_some() {
         let semilicon_idx = semilicon_idx.unwrap();
+
+        if let Token::Return = tokens[0] {
+            return (
+                parse_return_statement(&tokens[0..=semilicon_idx]),
+                semilicon_idx + 1,
+            );
+        }
+
         assert!(tokens.len() > 2);
 
         const MODIFIER_TKS: [Token; 4] = [
@@ -227,4 +235,16 @@ fn parse_function_declaration(tokens: &[Token]) -> (Node, usize) {
         Node::FunctionDeclaration(identifier, params, program.to_box()),
         close_curly + 1,
     )
+}
+
+fn parse_return_statement(tokens: &[Token]) -> Node {
+    assert_eq!(tokens[0], Token::Return);
+    assert_eq!(*tokens.last().unwrap(), Token::Semilicon);
+
+    if tokens.len() > 2 {
+        let value = parse_expr(&tokens[1..tokens.len() - 1]);
+        Node::Return(Some(value.to_box()))
+    } else {
+        Node::Return(None)
+    }
 }

@@ -1,3 +1,10 @@
-foo = function(a, b="hi") {
-    const a = 0;
+foo = function(a, b=false) {
+    const c = 1;
+
+    if (a + c) {
+        ERROR.push(error_new());
+        return;
+    }
+
+    return a+b;
 }
