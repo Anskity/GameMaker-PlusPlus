@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Node {
     //Statements
     Program(Vec<Box<Node>>),
@@ -18,10 +18,10 @@ pub enum Node {
     Return(Option<Box<Node>>),
 
     //Symbols
-    BinaryOperator(char),
+    BinaryOperator(OperatorType),
 
     //Expressions
-    BinaryExpr(Box<Node>, char, Box<Node>),
+    BinaryExpr(Box<Node>, OperatorType, Box<Node>),
     Neg(Box<Node>),
     Not(Box<Node>),
     BitwiseOr(Box<Node>, Box<Node>),
@@ -57,7 +57,7 @@ impl Node {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DeclarationType {
     Var,
     Const,
@@ -70,4 +70,21 @@ pub enum OperatorType {
     Sub,
     Mul,
     Div,
+
+    Gt,
+    Lt,
+    GtE,
+    LtE,
+    Equals,
+    NotEquals,
+
+    And,
+    Or,
+    Xor,
+
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    BitwiseShiftLeft,
+    BitwiseShiftRight,
 }

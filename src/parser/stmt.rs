@@ -99,7 +99,9 @@ fn parse_variable_declaration(tokens: &[Token]) -> Node {
     } else {
         tokens.len()
     };
+
     let init_value = parse_expr(&tokens[(equals_idx + 1)..end_idx]);
+    println!("{:?}", init_value);
 
     Node::VariableDeclaration(variable_type, identifier.to_box(), init_value.to_box())
 }
