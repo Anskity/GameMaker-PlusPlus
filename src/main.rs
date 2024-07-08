@@ -1,3 +1,4 @@
+use gamemaker_plus::macros::apply_macros;
 use gamemaker_plus::parser::core::parse;
 use gamemaker_plus::tokenizer::tokenize;
 
@@ -7,14 +8,15 @@ fn main() {
     }
 
     let args: Vec<String> = std::env::args().collect();
-    let code = if args.len() > 1 {
+    let mut code = if args.len() > 1 {
         args[1].clone()
     } else {
         std::fs::read_to_string("code.gmpp").unwrap()
     };
 
+    apply_macros(&mut code);
+
     let tokens = tokenize(&code);
-    println!("{:?}", tokens);
     let ast = parse(&tokens);
 
     dbg!(ast);

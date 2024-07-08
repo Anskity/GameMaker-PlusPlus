@@ -78,10 +78,12 @@ pub fn parse_stmt(tokens: &[Token]) -> (Node, usize) {
 
     let prepared_tokens = &tokens[..semilicon_idx.unwrap_or_else(|| tokens.len())];
 
-    (
-        parse_expr(prepared_tokens),
-        get_avaible_tokens_for_expr(prepared_tokens) + 1,
-    )
+    let expr = parse_expr(prepared_tokens);
+
+    match expr {
+        Node::FunctionCall(_, _) => (expr, get_avaible_tokens_for_expr(prepared_tokens) + 1),
+        _ => panic!("INVALID TOKENS WHEN PARSING STATEMENT: {:?}", &tokens),
+    }
 }
 
 fn parse_variable_declaration(tokens: &[Token]) -> Node {

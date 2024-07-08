@@ -1,7 +1,5 @@
-function alert(msg="Default Message") {
-    show_message(msg);
-}
+#macro MANAGE_PAUSE if (global.pause) {return;} 
 
-for (var i = 0; i < array_length(names); ++i) {
-    alert(names[i]);
-}
+MANAGE_PAUSE;
+do_stuff();
+

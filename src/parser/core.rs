@@ -7,6 +7,11 @@ pub fn parse(tokens: &Vec<Token>) -> Node {
     let mut ptr: usize = 0;
 
     while ptr < tokens.len() {
+        if tokens[ptr] == Token::Semilicon {
+            ptr += 1;
+            continue;
+        }
+
         let (new_node, consumed) = parse_stmt(&tokens[ptr..]);
 
         assert!(consumed > 0);
