@@ -109,7 +109,6 @@ fn parse_variable_declaration(tokens: &[Token]) -> Node {
     };
 
     let init_value = parse_expr(&tokens[(equals_idx + 1)..end_idx]);
-    println!("{:?}", init_value);
 
     Node::VariableDeclaration(variable_type, identifier.to_box(), init_value.to_box())
 }
@@ -292,7 +291,6 @@ fn parse_for_loop(tokens: &[Token]) -> (Node, usize) {
         for_attribute_ranges
     );
 
-    println!("{:?}", for_attribute_ranges);
     assert_eq!(for_attribute_ranges.len(), 3);
 
     let mut attribute_tokens = for_attribute_ranges
@@ -302,8 +300,6 @@ fn parse_for_loop(tokens: &[Token]) -> (Node, usize) {
 
     attribute_tokens[0].push(Token::Semilicon);
     attribute_tokens[2].push(Token::Semilicon);
-
-    dbg!(&attribute_tokens);
 
     let (start_statement, _) = parse_stmt(&attribute_tokens[0]);
     let condition = parse_expr(&attribute_tokens[1]);
