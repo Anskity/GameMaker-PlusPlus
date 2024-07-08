@@ -37,27 +37,6 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
 
     let semilicon_idx = find_free_token(tokens, &Token::Semilicon, 0);
 
-    let equals_idx = find_free_token(tokens, &Token::Equals, 0);
-    if equals_idx.is_some() {
-        let equals_idx = equals_idx.unwrap();
-        let mut end_idx = semilicon_idx;
-
-        if end_idx.is_none() {
-            assert_eq_or!(tokens[equals_idx + 1], Token::Function);
-            assert_eq_or!(tokens[equals_idx + 2], Token::OpenParenthesis);
-            let close_parenthesis = find_pair_container(tokens, equals_idx + 2).unwrap();
-            assert_eq_or!(tokens[close_parenthesis + 1], Token::OpenCurly);
-            let close_curly = find_pair_container(tokens, close_parenthesis + 1).unwrap();
-
-            end_idx = Some(close_curly);
-        }
-        let end_idx = end_idx.unwrap();
-        return Ok((
-            parse_variable_declaration(&tokens[..=end_idx])?,
-            end_idx + 1,
-        ));
-    }
-
     if semilicon_idx.is_some() {
         let semilicon_idx = semilicon_idx.unwrap();
 
@@ -82,6 +61,27 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
                 return Ok((node, semilicon_idx + 1));
             }
         }
+    }
+
+    let equals_idx = find_free_token(tokens, &Token::Equals, 0);
+    if equals_idx.is_some() {
+        let equals_idx = equals_idx.unwrap();
+        let mut end_idx = semilicon_idx;
+
+        if end_idx.is_none() {
+            assert_eq_or!(tokens[equals_idx + 1], Token::Function);
+            assert_eq_or!(tokens[equals_idx + 2], Token::OpenParenthesis);
+            let close_parenthesis = find_pair_container(tokens, equals_idx + 2).unwrap();
+            assert_eq_or!(tokens[close_parenthesis + 1], Token::OpenCurly);
+            let close_curly = find_pair_container(tokens, close_parenthesis + 1).unwrap();
+
+            end_idx = Some(close_curly);
+        }
+        let end_idx = end_idx.unwrap();
+        return Ok((
+            parse_variable_declaration(&tokens[..=end_idx])?,
+            end_idx + 1,
+        ));
     }
 
     if tokens[0] == Token::OpenCurly {
@@ -115,6 +115,7 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
 }
 
 fn parse_variable_declaration(tokens: &[Token]) -> Result<Node, Error> {
+    println!("{:?}", tokens);
     let equals_idx = find_free_token(tokens, &Token::Equals, 0);
     assert_or!(equals_idx.is_some());
 

@@ -61,7 +61,12 @@ pub(crate) use assert_eq_or;
 macro_rules! assert_or {
     ($value:expr) => {
         if !($value) {
-            let msg = format!("ASSERTION FAILED: {:?}", $value);
+            let msg = format!(
+                "ASSERTION FAILED: {:?}\nFile: {:?}\nLine: {:?}",
+                $value,
+                file!(),
+                line!()
+            );
             return Err(Error::new(ErrorKind::InvalidData, msg));
         }
     };

@@ -203,19 +203,25 @@ impl TokenRecognizer for NumericLiteralRecognizer {
     }
 
     fn consume(&self, code_left: &str) -> TokenConsumeMessage {
+        use std::u32;
         let identifier: String = code_left
             .chars()
             .into_iter()
-            .take_while(|chr| self.is_valid(chr.to_string().as_str()))
+            .take_while(|chr| {
+                u32::from_str_radix(chr.to_string().as_str(), 16).is_ok() || *chr == 'x'
+            })
             .collect();
         let consumed: usize = identifier.chars().count();
 
-        TokenConsumeMessage(
-            vec![Token::NumericLiteral(
-                identifier.parse().expect("INVALID NUMERIC LITERAL"),
-            )],
-            consumed,
-        )
+        let numb: u32 = if identifier.starts_with("0x") {
+            u32::from_str_radix(&identifier[2..], 16).expect("INVALID HEX NUMBER")
+        } else if identifier.starts_with("0b") {
+            u32::from_str_radix(&identifier[2..], 2).expect("INVALID BINARY NUMBER")
+        } else {
+            identifier.parse().expect("INVALID NUMERIC LITERAL")
+        };
+
+        TokenConsumeMessage(vec![Token::NumericLiteral(numb)], consumed)
     }
 }
 
