@@ -5,6 +5,7 @@ pub enum Node {
     VariableDeclaration(Option<DeclarationType>, Box<Node>, Box<Node>),
     If(Box<Node>, Box<Node>, Option<Box<Node>>),
     Else(Box<Node>),
+    For(Box<Node>, Box<Node>, Box<Node>, Box<Node>),
     While(Box<Node>, Box<Node>),
     With(Box<Node>, Box<Node>),
     Do(Box<Node>, Box<Node>),

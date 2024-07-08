@@ -1,7 +1,11 @@
+use std::ops::Range;
+
 use crate::ast::DeclarationType;
 use crate::ast::Node;
+use crate::code_container::CodeContainerManager;
 use crate::parser::core::parse;
 use crate::parser::expr::{get_avaible_tokens_for_expr, parse_expr};
+use crate::parser_macros::split_tokens;
 use crate::parser_utils::amount_of_tokens;
 use crate::parser_utils::find_free_token;
 use crate::parser_utils::find_pair_container;
@@ -23,6 +27,10 @@ pub fn parse_stmt(tokens: &[Token]) -> (Node, usize) {
 
     if let Token::Function = tokens[0] {
         return parse_function_declaration(tokens);
+    }
+
+    if let Token::For = tokens[0] {
+        return parse_for_loop(tokens);
     }
 
     let semilicon_idx = find_free_token(tokens, &Token::Semilicon, 0);
@@ -263,4 +271,57 @@ fn parse_return_statement(tokens: &[Token]) -> Node {
     } else {
         Node::Return(None)
     }
+}
+
+fn parse_for_loop(tokens: &[Token]) -> (Node, usize) {
+    assert_eq!(tokens[0], Token::For);
+    assert_eq!(tokens[1], Token::OpenParenthesis);
+    let close_parenthesis = find_pair_container(tokens, 1).unwrap();
+
+    let mut last_ptr = 1;
+    let mut code_container = CodeContainerManager::new();
+    let mut for_attribute_ranges: Vec<Range<usize>> = Vec::new();
+
+    let tokens_to_split = &tokens[1..=close_parenthesis];
+
+    split_tokens!(
+        tokens_to_split,
+        code_container,
+        Token::Semilicon,
+        last_ptr,
+        for_attribute_ranges
+    );
+
+    println!("{:?}", for_attribute_ranges);
+    assert_eq!(for_attribute_ranges.len(), 3);
+
+    let mut attribute_tokens = for_attribute_ranges
+        .into_iter()
+        .map(|range| tokens[range.start + 1..=range.end].to_vec())
+        .collect::<Vec<Vec<Token>>>();
+
+    attribute_tokens[0].push(Token::Semilicon);
+    attribute_tokens[2].push(Token::Semilicon);
+
+    dbg!(&attribute_tokens);
+
+    let (start_statement, _) = parse_stmt(&attribute_tokens[0]);
+    let condition = parse_expr(&attribute_tokens[1]);
+    let (iteration_factor, _) = parse_stmt(&attribute_tokens[2]);
+
+    assert_eq!(tokens[close_parenthesis + 1], Token::OpenCurly);
+    let close_curly = find_pair_container(tokens, close_parenthesis + 1)
+        .expect("COULDNT FIND PAIR CURLY WHEN PARSING FOR LOOP");
+
+    let code_node = parse(&tokens[close_parenthesis + 2..close_curly].to_vec());
+
+    (
+        Node::For(
+            start_statement.to_box(),
+            condition.to_box(),
+            iteration_factor.to_box(),
+            code_node.to_box(),
+        ),
+        close_curly + 1,
+    )
 }

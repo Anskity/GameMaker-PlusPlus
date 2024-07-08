@@ -1,7 +1,7 @@
-/***
-  * @desc Basically show_message, but with a default message
-  * @param {String} [msg] The message to show
-  
-function alert(msg="HELLO") {
+function alert(msg="Default Message") {
     show_message(msg);
+}
+
+for (var i = 0; i < array_length(names); ++i) {
+    alert(names[i]);
 }
