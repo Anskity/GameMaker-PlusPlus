@@ -35,3 +35,31 @@ macro_rules! apply_range {
     };
 }
 pub(crate) use apply_range;
+
+macro_rules! impl_enum_equal {
+    ($name:ident) => {
+        impl PartialEq for $name {
+            fn eq(&self, other: &Self) -> bool {
+                use std::mem::discriminant;
+                discriminant(self) == discriminant(other)
+            }
+        }
+    };
+}
+pub(crate) use impl_enum_equal;
+
+macro_rules! assert_eq_or {
+    ($left:expr, $right:expr) => {
+        if $left != $right {
+            let msg = format!("{:?} != {:?}", $left, $right);
+            return Err(Error::new(ErrorKind::InvalidData, msg));
+        }
+    };
+}
+pub(crate) use assert_eq_or;
+
+macro_rules! throw_err {
+    (literal) => {
+        return Err(Error::new(ErrorKind::InvalidData, literal));
+    };
+}

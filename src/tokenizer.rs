@@ -1,8 +1,9 @@
+use crate::parser_macros::impl_enum_equal;
 use std::ops::Range;
 
 use crate::ast::OperatorType;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Token {
     OpenParenthesis,
     CloseParenthesis,
@@ -53,6 +54,8 @@ pub enum Token {
 
     EOF,
 }
+
+impl_enum_equal!(Token);
 
 struct TokenConsumeMessage(Vec<Token>, usize); //(new_tokens, consumed_characters)
 

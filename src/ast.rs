@@ -1,3 +1,4 @@
+use crate::parser_macros::impl_enum_equal;
 #[derive(Debug, Clone)]
 pub enum Node {
     //Statements
@@ -52,6 +53,8 @@ pub enum Node {
     DsGridAccess(Box<Node>, Box<Node>, Box<Node>),
     StructKeyAccess(Box<Node>, Box<Node>),
 }
+
+impl_enum_equal!(Node);
 
 impl Node {
     pub fn to_box(self) -> Box<Self> {
