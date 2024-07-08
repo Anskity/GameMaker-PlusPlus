@@ -10,48 +10,74 @@ use std::ops::Range;
 use std::ops::RangeInclusive;
 
 pub fn get_avaible_tokens_for_expr(tokens: &[Token]) -> usize {
-    tokens.len()
-    //let mut code_manager = CodeContainerManager::new();
-    //
-    //let mut first_iteration = true;
-    //
-    //let mut length: usize = 1;
-    //
-    //for (prev_tk, current_tk) in tokens.iter().zip(tokens.iter().skip(1)) {
-    //    if first_iteration {
-    //        code_manager.check(prev_tk);
-    //        first_iteration = false;
-    //    }
-    //
-    //    let is_safe = code_manager.is_safe(current_tk);
-    //
-    //    if !is_safe {
-    //        break;
-    //    }
-    //
-    //    if let (Token::Identifier(_), Token::Identifier(_)) = (prev_tk, current_tk) {
-    //        break;
-    //    }
-    //    if let (Token::NumericLiteral(_), Token::NumericLiteral(_)) = (prev_tk, current_tk) {
-    //        break;
-    //    }
-    //
-    //    if code_manager.is_free()
-    //        && (*prev_tk == Token::CloseCurly
-    //            || *prev_tk == Token::CloseBracket
-    //            || *prev_tk == Token::CloseParenthesis)
-    //    {
-    //        match *current_tk {
-    //            Token::Identifier(_) | Token::NumericLiteral(_) => break,
-    //            _ => {}
-    //        }
-    //    }
-    //
-    //    length += 1;
-    //    code_manager.check(current_tk);
-    //}
-    //
-    //length
+    let mut numb = 0usize;
+    let mut container = CodeContainerManager::new();
+
+    if !container.is_safe(&tokens[0]) {
+        return 0;
+    }
+
+    loop {
+        let tk = &tokens[numb];
+        let next = tokens.get(numb + 1);
+
+        if *tk == Token::Function {
+            numb += 1;
+            let mut temp_container = CodeContainerManager::new();
+            temp_container.check(&tokens[numb]);
+
+            while !temp_container.is_free() && numb < tokens.len() {
+                numb += 1;
+                container.check(&tokens[numb]);
+            }
+            numb += 1;
+            temp_container.check(&tokens[numb]);
+            while !temp_container.is_free() && numb < tokens.len() {
+                numb += 1;
+                container.check(&tokens[numb]);
+            }
+
+            continue;
+        }
+
+        if !container.is_safe(tk) {
+            break;
+        }
+        container.check(tk);
+
+        if container.is_free() {
+            if next == Some(&Token::OpenCurly) {
+                match *tk {
+                    Token::Identifier(_)
+                    | Token::NumericLiteral(_)
+                    | Token::CloseParenthesis
+                    | Token::CloseBracket
+                    | Token::CloseCurly => {
+                        numb += 1;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+            if next == Some(&Token::Identifier("".to_string())) {
+                match *tk {
+                    Token::Identifier(_) | Token::NumericLiteral(_) | Token::CloseParenthesis => {
+                        numb += 1;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        numb += 1;
+
+        if numb >= tokens.len() {
+            break;
+        }
+    }
+
+    numb
 }
 
 pub fn parse_struct_access(struct_id: Node, tokens: &[Token]) -> Result<Node, Error> {

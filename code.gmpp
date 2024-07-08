@@ -1,3 +1,2 @@
-if a == 2 {
-    do_stuff();
-}
+do i++;
+until i == 5;

@@ -7,8 +7,7 @@ use crate::ast::Node;
 use crate::code_container::CodeContainerManager;
 use crate::parser::core::parse;
 use crate::parser::expr::{get_avaible_tokens_for_expr, parse_expr};
-use crate::parser_macros::assert_eq_or;
-use crate::parser_macros::split_tokens;
+use crate::parser_macros::{assert_eq_or, assert_or, split_tokens, throw_err};
 use crate::parser_utils::amount_of_tokens;
 use crate::parser_utils::find_free_token;
 use crate::parser_utils::find_pair_container;
@@ -69,7 +68,7 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
             ));
         }
 
-        assert!(tokens.len() > 2);
+        assert_or!(tokens.len() > 2);
 
         const MODIFIER_TKS: [Token; 4] = [
             Token::IncrementBy,
@@ -103,7 +102,11 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
     let expr = parse_expr(prepared_tokens)?;
 
     match expr {
-        Node::FunctionCall(_, _) => Ok((expr, get_avaible_tokens_for_expr(prepared_tokens) + 1)),
+        Node::FunctionCall(_, _)
+        | Node::PreIncrement(_)
+        | Node::PreDecrement(_)
+        | Node::PostIncrement(_)
+        | Node::PostDecrement(_) => Ok((expr, get_avaible_tokens_for_expr(prepared_tokens) + 1)),
         _ => Err(Error::new(
             ErrorKind::InvalidData,
             "INVALID TOKENS WHEN PARSING STATEMENT",
@@ -113,7 +116,7 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
 
 fn parse_variable_declaration(tokens: &[Token]) -> Result<Node, Error> {
     let equals_idx = find_free_token(tokens, &Token::Equals, 0);
-    assert!(equals_idx.is_some());
+    assert_or!(equals_idx.is_some());
 
     let equals_idx = equals_idx.unwrap();
 
@@ -146,11 +149,23 @@ fn parse_variable_declaration(tokens: &[Token]) -> Result<Node, Error> {
 
 fn parse_if_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
     assert_eq_or!(tokens[0], Token::If);
-    assert_eq_or!(tokens[1], Token::OpenParenthesis);
-    let condition_close_idx = find_pair_container(tokens, 1).unwrap();
 
-    let condition_node = parse_expr(&tokens[2..condition_close_idx])?;
+    let (condition_consumed, condition_node) = if tokens[1] == Token::OpenParenthesis {
+        let close_parenthesis = find_pair_container(tokens, 1);
+        if close_parenthesis.is_none() {
+            throw_err!("NO CLOSE PARENTHESIS");
+        }
+        let close_parenthesis = close_parenthesis.unwrap();
+        let condition_node = parse_expr(&tokens[2..close_parenthesis])?;
 
+        (close_parenthesis, condition_node)
+    } else {
+        let avaible_tokens = get_avaible_tokens_for_expr(&tokens[1..]);
+        let node = parse_expr(&tokens[1..=avaible_tokens])?;
+        (avaible_tokens, node)
+    };
+
+    let condition_close_idx = condition_consumed;
     let (code_node, code_consumed) = parse_stmt(&tokens[condition_close_idx + 1..])?;
 
     let (else_node, else_consumed) = if tokens
@@ -187,35 +202,42 @@ fn parse_else_statement(tokens: &[Token]) -> Result<(Option<Node>, usize), Error
 
 fn parse_while_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
     assert_eq_or!(tokens[0], Token::While);
-    assert_eq_or!(tokens[1], Token::OpenParenthesis);
-    let close_parenthesis = find_pair_container(tokens, 1).unwrap();
 
-    let condition_node = parse_expr(&tokens[2..close_parenthesis])?;
+    let (close_parenthesis, condition_node): (usize, Node) = if tokens[1] == Token::OpenParenthesis
+    {
+        let idx = find_pair_container(tokens, 1);
+        if idx.is_none() {
+            throw_err!("COULDNT FIND PAIR PARENTHESIS");
+        }
+        let idx = idx.unwrap();
+        let node = parse_expr(&tokens[2..idx])?;
+        (idx, node)
+    } else {
+        let avaible_tokens = get_avaible_tokens_for_expr(&tokens[1..]);
+        let node = parse_expr(&tokens[1..=avaible_tokens])?;
+        (avaible_tokens, node)
+    };
 
-    assert_eq_or!(tokens[close_parenthesis + 1], Token::OpenCurly);
-    let close_curly = find_pair_container(tokens, close_parenthesis + 1).unwrap();
-
-    let code_node = parse(&tokens[close_parenthesis + 2..close_curly].to_vec())?;
+    let (code_node, code_consumed) = parse_stmt(&tokens[close_parenthesis + 1..])?;
 
     Ok((
         Node::While(condition_node.to_box(), code_node.to_box()),
-        close_curly + 1,
+        close_parenthesis + code_consumed + 1,
     ))
 }
 
 fn parse_do_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
     assert_eq_or!(tokens[0], Token::Do);
-    assert_eq_or!(tokens[1], Token::OpenCurly);
-    let close_curly = find_pair_container(tokens, 1).unwrap();
 
-    let code_node = parse(&tokens[2..close_curly].to_vec())?;
+    let (code_node, code_consumed) = parse_stmt(&tokens[1..])?;
 
-    assert_eq_or!(tokens[close_curly + 1], Token::Until);
-    let semilicon_idx = find_free_token(&tokens[close_curly + 2..], &Token::Semilicon, 0).unwrap()
-        + close_curly
+    assert_eq_or!(tokens[code_consumed + 1], Token::Until);
+    let semilicon_idx = find_free_token(&tokens[code_consumed + 2..], &Token::Semilicon, 0)
+        .unwrap()
+        + code_consumed
         + 2;
 
-    let condition_node = parse_expr(&tokens[close_curly + 2..semilicon_idx])?;
+    let condition_node = parse_expr(&tokens[code_consumed + 2..semilicon_idx])?;
 
     let until_node = Node::Until(condition_node.to_box());
     let do_node = Node::Do(code_node.to_box(), until_node.to_box());

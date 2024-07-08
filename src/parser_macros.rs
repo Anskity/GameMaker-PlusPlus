@@ -58,8 +58,19 @@ macro_rules! assert_eq_or {
 }
 pub(crate) use assert_eq_or;
 
-macro_rules! throw_err {
-    (literal) => {
-        return Err(Error::new(ErrorKind::InvalidData, literal));
+macro_rules! assert_or {
+    ($value:expr) => {
+        if !($value) {
+            let msg = format!("ASSERTION FAILED: {:?}", $value);
+            return Err(Error::new(ErrorKind::InvalidData, msg));
+        }
     };
 }
+pub(crate) use assert_or;
+
+macro_rules! throw_err {
+    ($value:literal) => {
+        return Err(Error::new(ErrorKind::InvalidData, $value));
+    };
+}
+pub(crate) use throw_err;
