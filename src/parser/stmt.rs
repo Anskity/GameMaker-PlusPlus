@@ -12,6 +12,7 @@ use crate::parser_utils::amount_of_tokens;
 use crate::parser_utils::find_free_token;
 use crate::parser_utils::find_pair_container;
 use crate::parser_utils::parse_function_paremeters;
+use crate::parser_utils::split_tokens;
 use crate::tokenizer::Token;
 
 pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
@@ -33,6 +34,10 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
 
     if let Token::For = tokens[0] {
         return parse_for_loop(tokens);
+    }
+
+    if let Token::Enum = tokens[0] {
+        return parse_enum(tokens);
     }
 
     let semilicon_idx = find_free_token(tokens, &Token::Semilicon, 0);
@@ -87,7 +92,7 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
     if tokens[0] == Token::OpenCurly {
         let close_curly = find_pair_container(tokens, 0);
 
-        if close_curly.is_some() {
+        if close_curly.is_ok() {
             let close_curly = close_curly.unwrap();
             let program = parse(&tokens[1..close_curly].to_vec());
 
@@ -152,11 +157,7 @@ fn parse_if_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
     assert_eq_or!(tokens[0], Token::If);
 
     let (condition_consumed, condition_node) = if tokens[1] == Token::OpenParenthesis {
-        let close_parenthesis = find_pair_container(tokens, 1);
-        if close_parenthesis.is_none() {
-            throw_err!("NO CLOSE PARENTHESIS");
-        }
-        let close_parenthesis = close_parenthesis.unwrap();
+        let close_parenthesis = find_pair_container(tokens, 1)?;
         let condition_node = parse_expr(&tokens[2..close_parenthesis])?;
 
         (close_parenthesis, condition_node)
@@ -206,11 +207,7 @@ fn parse_while_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
 
     let (close_parenthesis, condition_node): (usize, Node) = if tokens[1] == Token::OpenParenthesis
     {
-        let idx = find_pair_container(tokens, 1);
-        if idx.is_none() {
-            throw_err!("COULDNT FIND PAIR PARENTHESIS");
-        }
-        let idx = idx.unwrap();
+        let idx = find_pair_container(tokens, 1)?;
         let node = parse_expr(&tokens[2..idx])?;
         (idx, node)
     } else {
@@ -388,6 +385,37 @@ fn parse_for_loop(tokens: &[Token]) -> Result<(Node, usize), Error> {
             iteration_factor.to_box(),
             code_node.to_box(),
         ),
+        close_curly + 1,
+    ))
+}
+
+fn parse_enum(tokens: &[Token]) -> Result<(Node, usize), Error> {
+    assert_eq_or!(tokens[0], Token::Enum);
+    let identifier = match &tokens[1] {
+        Token::Identifier(id) => id.clone(),
+        _ => {
+            throw_err!("Second token in enum declaration wasn't an identifier");
+        }
+    };
+    assert_eq_or!(tokens[2], Token::OpenCurly);
+    let close_curly = find_pair_container(tokens, 2)?;
+
+    let variant_tokens = split_tokens(&tokens[3..close_curly], Token::Comma);
+
+    let mut variant_nodes: Vec<Box<Node>> = Vec::new();
+
+    for tks in variant_tokens {
+        let id = match &tks[0] {
+            Token::Identifier(id) => id.clone(),
+            _ => {
+                throw_err!("First token in enum variant isn't an identifier");
+            }
+        };
+        variant_nodes.push(Node::EnumVariant(id).to_box());
+    }
+
+    Ok((
+        Node::EnumDeclaration(identifier, variant_nodes),
         close_curly + 1,
     ))
 }

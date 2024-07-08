@@ -47,6 +47,7 @@ pub enum Token {
     If,
     Else,
     With,
+    Enum,
 
     Var,
     Const,
@@ -94,6 +95,7 @@ impl TokenRecognizer for IdentifierRecognizer {
             "var" => Token::Var,
             "const" => Token::Const,
             "let" => Token::Let,
+            "enum" => Token::Enum,
             _ => Token::Identifier(identifier),
         };
 

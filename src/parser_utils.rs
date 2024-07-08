@@ -49,12 +49,15 @@ pub fn find_free_token(tokens: &[Token], search: &Token, offset: usize) -> Optio
     None
 }
 
-pub fn find_pair_container(tokens: &[Token], idx: usize) -> Option<usize> {
+pub fn find_pair_container(tokens: &[Token], idx: usize) -> Result<usize, Error> {
     let start_tk = &tokens[idx];
     let going_forward = match *start_tk {
         Token::OpenParenthesis | Token::OpenCurly | Token::OpenBracket => true,
         Token::CloseParenthesis | Token::CloseCurly | Token::CloseBracket => false,
-        _ => panic!("Unexpected token finding a pair: {:?}", start_tk),
+        _ => {
+            let msg = format!(": {:?}", start_tk);
+            throw_err!(msg);
+        }
     };
     let mut ptr = idx;
     let mut container = CodeContainerManager::new();
@@ -67,7 +70,7 @@ pub fn find_pair_container(tokens: &[Token], idx: usize) -> Option<usize> {
         }
 
         if container.is_free() {
-            return Some(ptr);
+            return Ok(ptr);
         }
 
         if (ptr == 0 && !going_forward) || (ptr == tokens.len() - 1 && going_forward) {
@@ -77,7 +80,7 @@ pub fn find_pair_container(tokens: &[Token], idx: usize) -> Option<usize> {
         ptr = (ptr as isize + if going_forward { 1 } else { -1 }) as usize;
     }
 
-    None
+    throw_err!("COULDNT FIND PAIR CONTAINER");
 }
 pub fn parse_function_paremeters(tokens: &[Token]) -> Result<Vec<Box<Node>>, Error> {
     assert_eq!(tokens[0], Token::OpenParenthesis);
@@ -152,4 +155,23 @@ pub fn parse_function_paremeters(tokens: &[Token]) -> Result<Vec<Box<Node>>, Err
             .collect();
         Ok(safe_nodes)
     }
+}
+
+pub fn split_tokens(tokens: &[Token], separator: Token) -> Vec<&[Token]> {
+    let mut code_manager = CodeContainerManager::new();
+    let mut last_ptr = 0usize;
+    let mut sorted_tokens: Vec<&[Token]> = Vec::new();
+
+    for (i, tk) in tokens.iter().enumerate() {
+        code_manager.check(tk);
+        if !code_manager.is_free() {
+            continue;
+        }
+        if *tk == separator {
+            sorted_tokens.push(&tokens[last_ptr..i]);
+            last_ptr = i + 1;
+        }
+    }
+
+    sorted_tokens
 }

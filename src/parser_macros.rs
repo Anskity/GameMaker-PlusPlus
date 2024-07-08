@@ -51,7 +51,13 @@ pub(crate) use impl_enum_equal;
 macro_rules! assert_eq_or {
     ($left:expr, $right:expr) => {
         if $left != $right {
-            let msg = format!("{:?} != {:?}", $left, $right);
+            let msg = format!(
+                "{:?} != {:?}\nFile: {:?}\nLine: {:?}",
+                $left,
+                $right,
+                file!(),
+                line!()
+            );
             return Err(Error::new(ErrorKind::InvalidData, msg));
         }
     };
@@ -74,8 +80,9 @@ macro_rules! assert_or {
 pub(crate) use assert_or;
 
 macro_rules! throw_err {
-    ($value:literal) => {
-        return Err(Error::new(ErrorKind::InvalidData, $value));
+    ($value:expr) => {
+        let msg = format!("{:?}\nFile: {:?}\nLine: {:?}", $value, file!(), line!());
+        return Err(Error::new(ErrorKind::InvalidData, msg));
     };
 }
 pub(crate) use throw_err;

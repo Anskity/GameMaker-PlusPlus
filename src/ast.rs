@@ -19,6 +19,8 @@ pub enum Node {
     FunctionDeclaration(String, Vec<Box<Node>>, Box<Node>),
     FunctionConstructorDeclaration(String, Vec<Box<Node>>, Box<Node>),
     Return(Option<Box<Node>>),
+    EnumDeclaration(String, Vec<Box<Node>>),
+    EnumVariant(String),
 
     //Symbols
     BinaryOperator(OperatorType),

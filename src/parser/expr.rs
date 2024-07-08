@@ -239,7 +239,7 @@ pub fn parse_ternary(tokens: &[Token]) -> Result<Node, Error> {
 pub fn parse_function_call(func_node: Node, argument_tokens: &[Token]) -> Result<Node, Error> {
     assert_eq!(*argument_tokens.first().unwrap(), Token::OpenParenthesis);
 
-    let close_parenthesis = find_pair_container(argument_tokens, 0).unwrap();
+    let close_parenthesis = find_pair_container(argument_tokens, 0)?;
 
     let mut container_manager = CodeContainerManager::new();
     //let mut arguments: Vec<Box<Node>> = Vec::new();
@@ -538,12 +538,12 @@ pub fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: &[
 fn parse_anonymous_function(tokens: &[Token]) -> Result<Node, Error> {
     assert_eq!(tokens[0], Token::Function);
     assert_eq!(tokens[1], Token::OpenParenthesis);
-    let close_parenthesis = find_pair_container(tokens, 1).unwrap();
+    let close_parenthesis = find_pair_container(tokens, 1)?;
 
     let paramethers = parse_function_paremeters(&tokens[1..=close_parenthesis])?;
 
     assert_eq!(tokens[close_parenthesis + 1], Token::OpenCurly);
-    let close_curly = find_pair_container(tokens, close_parenthesis + 1).unwrap();
+    let close_curly = find_pair_container(tokens, close_parenthesis + 1)?;
 
     let code_node = parse(&tokens[close_parenthesis + 2..close_curly].to_vec())?;
 
