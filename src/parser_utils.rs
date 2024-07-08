@@ -2,6 +2,7 @@ use crate::ast::Node;
 use crate::parser::expr::parse_expr;
 use crate::parser_macros::*;
 use crate::{code_container::CodeContainerManager, tokenizer::Token};
+use std::io::{Error, ErrorKind};
 use std::ops::Range;
 
 pub fn amount_of_tokens(tokens: &[Token], search: &Token) -> usize {
@@ -78,7 +79,7 @@ pub fn find_pair_container(tokens: &[Token], idx: usize) -> Option<usize> {
 
     None
 }
-pub fn parse_function_paremeters(tokens: &[Token]) -> Vec<Box<Node>> {
+pub fn parse_function_paremeters(tokens: &[Token]) -> Result<Vec<Box<Node>>, Error> {
     assert_eq!(tokens[0], Token::OpenParenthesis);
     assert_eq!(*tokens.last().unwrap(), Token::CloseParenthesis);
     let mut parameter_ranges: Vec<Range<usize>> = Vec::new();
@@ -92,41 +93,63 @@ pub fn parse_function_paremeters(tokens: &[Token]) -> Vec<Box<Node>> {
         parameter_ranges
     );
 
-    let parameter_nodes: Vec<Box<Node>> = parameter_ranges
+    let mut parameter_nodes: Vec<Result<Box<Node>, Error>> = parameter_ranges
         .into_iter()
         .map(|range| {
             let tokens = &tokens[range];
             if tokens.len() == 1 {
                 match &tokens[0] {
                     Token::Identifier(id) => {
-                        return Node::FunctionParemeter(
+                        return Ok(Node::FunctionParemeter(
                             Node::Identifier(id.clone()).to_box(),
                             None,
                         )
-                        .to_box();
+                        .to_box());
                     }
-                    _ => panic!("INVALID PARAMETER: {:?}", tokens),
+                    _ => Err(Error::new(ErrorKind::InvalidData, "INVALID PAREMETER")),
                 }
             } else if tokens.len() > 2 {
                 match (&tokens[0], &tokens[1]) {
                     (Token::Identifier(id), Token::Equals) => {
                         let identifier = Node::Identifier(id.clone());
                         assert_eq!(tokens[1], Token::Equals);
-                        let default_value: Node = parse_expr(&tokens[2..]);
+                        let default_value: Result<Node, Error> = parse_expr(&tokens[2..]);
 
-                        return Node::FunctionParemeter(
+                        if default_value.is_err() {
+                            return Err(Error::new(
+                                ErrorKind::InvalidData,
+                                "INVALID DEFAULT VALUE FOR FUNCTION PAREMETER",
+                            ));
+                        }
+                        let default_value = default_value.unwrap();
+
+                        return Ok(Node::FunctionParemeter(
                             identifier.to_box(),
                             Some(default_value.to_box()),
                         )
-                        .to_box();
+                        .to_box());
                     }
-                    _ => panic!("INVALID PAREMETER: {:?}", tokens),
+                    _ => Err(Error::new(ErrorKind::InvalidData, "INVALID PAREMETER")),
                 }
             } else {
-                panic!("INVALID PARAMETER: {:?}", tokens)
+                Err(Error::new(ErrorKind::InvalidData, "INVALID PAREMETER"))
             }
         })
         .collect();
 
-    parameter_nodes
+    let err_idx = parameter_nodes.iter().position(|result| result.is_err());
+    if err_idx.is_some() {
+        let err_idx = err_idx.unwrap();
+        let unsafe_result = parameter_nodes.remove(err_idx);
+        Err(Error::new(
+            ErrorKind::InvalidData,
+            unsafe_result.unwrap_err(),
+        ))
+    } else {
+        let safe_nodes: Vec<Box<Node>> = parameter_nodes
+            .into_iter()
+            .map(|result| result.unwrap())
+            .collect();
+        Ok(safe_nodes)
+    }
 }

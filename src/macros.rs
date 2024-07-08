@@ -26,15 +26,10 @@ pub fn apply_macros(code: &mut String) {
             ptr += 1;
         }
 
-        println!("{:?}", macro_name);
-        println!("{:?}", macro_code);
-
         code.replace_range(start..=ptr, "");
 
         user_macros.push((macro_name, macro_code));
     }
-
-    println!("{:?}", user_macros);
 
     for (macro_name, macro_code) in user_macros {
         let search_code = code.clone();

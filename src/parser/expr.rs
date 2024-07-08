@@ -5,6 +5,7 @@ use crate::parser::core::parse;
 use crate::parser_macros::*;
 use crate::parser_utils::*;
 use crate::tokenizer::Token;
+use std::io::{Error, ErrorKind};
 use std::ops::Range;
 use std::ops::RangeInclusive;
 
@@ -53,14 +54,14 @@ pub fn get_avaible_tokens_for_expr(tokens: &[Token]) -> usize {
     //length
 }
 
-pub fn parse_struct_access(struct_id: Node, tokens: &[Token]) -> Node {
+pub fn parse_struct_access(struct_id: Node, tokens: &[Token]) -> Result<Node, Error> {
     assert_eq!(tokens[0], Token::Dot);
 
-    let access_node = parse_expr(&tokens[1..]);
+    let access_node = parse_expr(&tokens[1..])?;
 
-    Node::StructAccess(struct_id.to_box(), access_node.to_box())
+    Ok(Node::StructAccess(struct_id.to_box(), access_node.to_box()))
 }
-pub fn parse_array_constructor(tokens: &[Token]) -> Node {
+pub fn parse_array_constructor(tokens: &[Token]) -> Result<Node, Error> {
     assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
     assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
 
@@ -85,13 +86,13 @@ pub fn parse_array_constructor(tokens: &[Token]) -> Node {
             element.pop();
         }
 
-        let expr = parse_expr(&element);
+        let expr = parse_expr(&element)?;
         element_nodes.push(expr.to_box());
     }
 
-    Node::ArrayConstructor(element_nodes)
+    Ok(Node::ArrayConstructor(element_nodes))
 }
-pub fn parse_struct(tokens: &[Token]) -> Node {
+pub fn parse_struct(tokens: &[Token]) -> Result<Node, Error> {
     assert_eq!(*tokens.first().unwrap(), Token::OpenCurly);
     assert_eq!(*tokens.last().unwrap(), Token::CloseCurly);
 
@@ -112,7 +113,7 @@ pub fn parse_struct(tokens: &[Token]) -> Node {
 
     let mut attribute_nodes: Vec<Box<Node>> = Vec::new();
     for tks in attribute_tokens {
-        let id = parse_primary(tks.first().unwrap());
+        let id = parse_primary(tks.first().unwrap())?;
         if tks.len() == 1 || (tks.len() == 2 && tks[1] == Token::Comma) {
             let node = Node::StructAttributePredefined(id.to_box());
             attribute_nodes.push(node.to_box());
@@ -127,7 +128,7 @@ pub fn parse_struct(tokens: &[Token]) -> Node {
         } else {
             2..tks.len()
         };
-        let expr = parse_expr(&tks[expr_range]);
+        let expr = parse_expr(&tks[expr_range])?;
 
         let node = Node::StructAttribute(id.to_box(), expr.to_box());
         attribute_nodes.push(node.to_box());
@@ -135,9 +136,9 @@ pub fn parse_struct(tokens: &[Token]) -> Node {
 
     let struct_node = Node::Struct(attribute_nodes);
 
-    struct_node
+    Ok(struct_node)
 }
-pub fn parse_array_access(arr_node: Node, tokens: &[Token]) -> Node {
+pub fn parse_array_access(arr_node: Node, tokens: &[Token]) -> Result<Node, Error> {
     assert_eq!(*tokens.first().unwrap(), Token::OpenBracket);
     assert_eq!(*tokens.last().unwrap(), Token::CloseBracket);
 
@@ -156,7 +157,7 @@ pub fn parse_array_access(arr_node: Node, tokens: &[Token]) -> Node {
 
     let array_idx = match current_acessor {
         Some(Token::HashTag) => None,
-        _ => Some(parse_expr(&tokens[idx_start..bracket_idx])),
+        _ => Some(parse_expr(&tokens[idx_start..bracket_idx])?),
     };
 
     let access_node = match current_acessor {
@@ -171,8 +172,8 @@ pub fn parse_array_access(arr_node: Node, tokens: &[Token]) -> Node {
             let comma_idx = find_free_token(&tokens[1..tokens.len() - 1], &Token::Comma, 0);
             assert!(comma_idx.is_some());
 
-            let x_pos_node = parse_expr(&tokens[idx_start..comma_idx.unwrap() + 1]);
-            let y_pos_node = parse_expr(&tokens[comma_idx.unwrap() + 2..bracket_idx]);
+            let x_pos_node = parse_expr(&tokens[idx_start..comma_idx.unwrap() + 1])?;
+            let y_pos_node = parse_expr(&tokens[comma_idx.unwrap() + 2..bracket_idx])?;
 
             Node::DsGridAccess(arr_node.to_box(), x_pos_node.to_box(), y_pos_node.to_box())
         }
@@ -182,14 +183,14 @@ pub fn parse_array_access(arr_node: Node, tokens: &[Token]) -> Node {
     };
 
     if bracket_idx == tokens.len() - 1 {
-        access_node
+        Ok(access_node)
     } else {
         let idx_tokens = &tokens[(bracket_idx + 1)..];
 
         parse_array_access(access_node, idx_tokens)
     }
 }
-pub fn parse_ternary(tokens: &[Token]) -> Node {
+pub fn parse_ternary(tokens: &[Token]) -> Result<Node, Error> {
     let question_mark_idx: usize = find_free_token(tokens, &Token::QuestionMark, 0)
         .expect("COULDNT FIND QUESTION MARK WHEN PARSING TERNARY OPERATOR");
     let colon_idx: usize = find_free_token(tokens, &Token::Colon, 0)
@@ -199,18 +200,19 @@ pub fn parse_ternary(tokens: &[Token]) -> Node {
     let true_range = (question_mark_idx + 1)..colon_idx;
     let false_range = (colon_idx + 1)..tokens.len();
 
-    let condition_expr = parse_expr(&tokens[condition_range]);
-    let true_expr = parse_expr(&tokens[true_range]);
-    let false_expr = parse_expr(&tokens[false_range]);
+    let condition_expr = parse_expr(&tokens[condition_range])?;
+    let true_expr = parse_expr(&tokens[true_range])?;
+    let false_expr = parse_expr(&tokens[false_range])?;
 
-    Node::Ternary(
+    Ok(Node::Ternary(
         condition_expr.to_box(),
         true_expr.to_box(),
         false_expr.to_box(),
-    )
+    ))
 }
-pub fn parse_function_call(func_node: Node, argument_tokens: &[Token]) -> Node {
+pub fn parse_function_call(func_node: Node, argument_tokens: &[Token]) -> Result<Node, Error> {
     assert_eq!(*argument_tokens.first().unwrap(), Token::OpenParenthesis);
+
     let close_parenthesis = find_pair_container(argument_tokens, 0).unwrap();
 
     let mut container_manager = CodeContainerManager::new();
@@ -231,18 +233,18 @@ pub fn parse_function_call(func_node: Node, argument_tokens: &[Token]) -> Node {
     let mut arguments: Vec<Box<Node>> = Vec::new();
     for range in argument_ranges {
         let expr = parse_expr(&argument_tokens[range]);
-        arguments.push(expr.to_box());
+        arguments.push(expr?.to_box());
     }
 
     if fixed_argument_tokens.len() == argument_tokens.len() {
-        Node::FunctionCall(func_node.to_box(), arguments)
+        Ok(Node::FunctionCall(func_node.to_box(), arguments))
     } else {
         let call_node = Node::FunctionCall(func_node.to_box(), arguments);
         let extra_range = (fixed_argument_tokens.len())..;
         parse_function_call(call_node, &argument_tokens[extra_range])
     }
 }
-pub fn parse_expr(tokens: &[Token]) -> Node {
+pub fn parse_expr(tokens: &[Token]) -> Result<Node, Error> {
     if find_free_token(tokens, &Token::QuestionMark, 0).is_some()
         && find_free_token(tokens, &Token::Colon, 0).is_some()
     {
@@ -257,13 +259,13 @@ pub fn parse_expr(tokens: &[Token]) -> Node {
 
     for range in ranges {
         let component = &tokens[range];
-        components.push(parse_component(&component));
+        components.push(parse_component(&component)?);
     }
 
     let mut insert_idx_buff = 0 as usize;
     for (i, idx) in idxs.iter().enumerate() {
         let operator: &Token = tokens.get(idx.clone()).unwrap();
-        components.insert(i + 1 + insert_idx_buff, parse_operator(operator));
+        components.insert(i + 1 + insert_idx_buff, parse_operator(operator)?);
         insert_idx_buff += 1;
     }
 
@@ -304,7 +306,7 @@ pub fn parse_expr(tokens: &[Token]) -> Node {
 
     assert_eq!(components.len(), 1);
 
-    components.remove(0)
+    Ok(components.remove(0))
 }
 
 pub fn parse_expr_components(tokens: &[Token]) -> (Vec<RangeInclusive<usize>>, Vec<usize>) {
@@ -340,7 +342,7 @@ pub fn parse_expr_components(tokens: &[Token]) -> (Vec<RangeInclusive<usize>>, V
     (ranges, oprts_idx)
 }
 
-pub fn parse_component(component: &[Token]) -> Node {
+pub fn parse_component(component: &[Token]) -> Result<Node, Error> {
     let first = component.first();
     let last = component.last();
     if component.len() == 1 {
@@ -348,10 +350,10 @@ pub fn parse_component(component: &[Token]) -> Node {
     }
 
     if let Token::Exclamation = first.unwrap() {
-        return Node::Not(parse_expr(&component[1..]).to_box());
+        return Ok(Node::Not(parse_expr(&component[1..])?.to_box()));
     }
     if let Token::Tilde = first.unwrap() {
-        return Node::BitwiseNot(parse_expr(&component[1..]).to_box());
+        return Ok(Node::BitwiseNot(parse_expr(&component[1..])?.to_box()));
     }
 
     if let Token::Function = first.unwrap() {
@@ -361,24 +363,27 @@ pub fn parse_component(component: &[Token]) -> Node {
 
     if let Token::BinaryOperator(operator_type) = first.unwrap() {
         return match *operator_type {
-            OperatorType::Sub => Node::Neg(parse_expr(&component[1..]).to_box()),
-            _ => panic!("FOUND INVALID FIRST OPERATOR IN COMPONENT: {:?}", component),
+            OperatorType::Sub => Ok(Node::Neg(parse_expr(&component[1..])?.to_box())),
+            _ => Err(Error::new(
+                ErrorKind::InvalidData,
+                "FIRST OPERATOR IN COMPONENT IS INVALID",
+            )),
         };
     }
 
     if component.len() == 2 {
         match (first.unwrap().to_owned(), last.unwrap().to_owned()) {
-            (Token::Identifier(id), Token::SingleIncrement) => return Node::PostIncrement(id),
-            (Token::Identifier(id), Token::SingleDecrement) => return Node::PostDecrement(id),
-            (Token::SingleIncrement, Token::Identifier(id)) => return Node::PreIncrement(id),
-            (Token::SingleDecrement, Token::Identifier(id)) => return Node::PreDecrement(id),
+            (Token::Identifier(id), Token::SingleIncrement) => return Ok(Node::PostIncrement(id)),
+            (Token::Identifier(id), Token::SingleDecrement) => return Ok(Node::PostDecrement(id)),
+            (Token::SingleIncrement, Token::Identifier(id)) => return Ok(Node::PreIncrement(id)),
+            (Token::SingleDecrement, Token::Identifier(id)) => return Ok(Node::PreDecrement(id)),
             _ => {}
         }
     }
 
     let dot_idx = find_free_token(component, &Token::Dot, 0);
     if dot_idx.is_some() {
-        let struct_node = parse_expr(&component[0..dot_idx.unwrap()]);
+        let struct_node = parse_expr(&component[0..dot_idx.unwrap()])?;
         return parse_struct_access(struct_node, &component[dot_idx.unwrap()..]);
     }
 
@@ -392,27 +397,29 @@ pub fn parse_component(component: &[Token]) -> Node {
                 Some(Token::OpenBracket) => {
                     let bracket_range = (end_position + 1)..;
 
-                    let array_id = parse_expr(&component[0..=end_position]);
+                    let array_id = parse_expr(&component[0..=end_position])?;
                     return parse_array_access(array_id, &component[bracket_range]);
                 }
 
                 Some(Token::OpenParenthesis) => {
                     let parenthesis_range = (end_position + 1)..;
-                    let func_id = parse_expr(&component[0..=end_position]);
+                    let func_id = parse_expr(&component[0..=end_position])?;
                     return parse_function_call(func_id, &component[parenthesis_range]);
                 }
 
                 Some(Token::Dot) => {
-                    let struct_id = parse_expr(&component[0..=end_position]);
+                    let struct_id = parse_expr(&component[0..=end_position])?;
                     return parse_struct_access(struct_id, &component[end_position + 1..]);
                 }
 
                 None => {}
 
-                _ => panic!(
-                    "Unexpecte token when parsing complex access: {:?}",
-                    component[end_position + 1]
-                ),
+                _ => {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Invalid input when parsing complex acess",
+                    ))
+                }
             }
         }
     }
@@ -445,7 +452,7 @@ pub fn parse_component(component: &[Token]) -> Node {
     if close_bracket_count > 1 {
         let first_close_bracket = find_free_token(component, &Token::CloseBracket, 0);
         let array_constructor_node =
-            parse_array_constructor(&component[0..=first_close_bracket.unwrap()]);
+            parse_array_constructor(&component[0..=first_close_bracket.unwrap()])?;
         return parse_array_access(
             array_constructor_node,
             &component[first_close_bracket.unwrap() + 1..],
@@ -459,20 +466,26 @@ pub fn parse_component(component: &[Token]) -> Node {
     panic!("UNEXPECTED COMPONENT: {:?}", component);
 }
 
-pub fn parse_primary(tk: &Token) -> Node {
+pub fn parse_primary(tk: &Token) -> Result<Node, Error> {
     match tk {
-        Token::Identifier(id) => Node::Identifier(id.clone()),
-        Token::NumericLiteral(numb) => Node::NumericLiteral(numb.clone()),
-        Token::String(txt) => Node::String(txt.clone()),
-        _ => panic!("ERROR PARSING PRIMARY: {:?}", tk),
+        Token::Identifier(id) => Ok(Node::Identifier(id.clone())),
+        Token::NumericLiteral(numb) => Ok(Node::NumericLiteral(numb.clone())),
+        Token::String(txt) => Ok(Node::String(txt.clone())),
+        _ => Err(Error::new(
+            ErrorKind::InvalidInput,
+            "Invalid token when parsing primary",
+        )),
     }
 }
 
-pub fn parse_operator(tk: &Token) -> Node {
+pub fn parse_operator(tk: &Token) -> Result<Node, Error> {
     if let Token::BinaryOperator(chr) = tk {
-        Node::BinaryOperator(chr.clone())
+        Ok(Node::BinaryOperator(chr.clone()))
     } else {
-        panic!("ERROR PARSING OPERATOR: {:?}", tk);
+        Err(Error::new(
+            ErrorKind::InvalidInput,
+            "Invalid token when parsing operator",
+        ))
     }
 }
 
@@ -496,17 +509,20 @@ pub fn parse_operators_on_components(nodes: &mut Vec<Node>, search_operators: &[
     }
 }
 
-fn parse_anonymous_function(tokens: &[Token]) -> Node {
+fn parse_anonymous_function(tokens: &[Token]) -> Result<Node, Error> {
     assert_eq!(tokens[0], Token::Function);
     assert_eq!(tokens[1], Token::OpenParenthesis);
     let close_parenthesis = find_pair_container(tokens, 1).unwrap();
 
-    let paramethers = parse_function_paremeters(&tokens[1..=close_parenthesis]);
+    let paramethers = parse_function_paremeters(&tokens[1..=close_parenthesis])?;
 
     assert_eq!(tokens[close_parenthesis + 1], Token::OpenCurly);
     let close_curly = find_pair_container(tokens, close_parenthesis + 1).unwrap();
 
-    let code_node = parse(&tokens[close_parenthesis + 2..close_curly].to_vec());
+    let code_node = parse(&tokens[close_parenthesis + 2..close_curly].to_vec())?;
 
-    Node::AnonymousFunctionDeclaration(paramethers, code_node.to_box())
+    Ok(Node::AnonymousFunctionDeclaration(
+        paramethers,
+        code_node.to_box(),
+    ))
 }

@@ -1,8 +1,10 @@
 use crate::ast::Node;
 use crate::parser::stmt::parse_stmt;
+use crate::parser_utils::find_pair_container;
 use crate::tokenizer::Token;
+use std::io::Error;
 
-pub fn parse(tokens: &Vec<Token>) -> Node {
+pub fn parse(tokens: &Vec<Token>) -> Result<Node, Error> {
     let mut nodes = Vec::<Box<Node>>::new();
     let mut ptr: usize = 0;
 
@@ -12,7 +14,16 @@ pub fn parse(tokens: &Vec<Token>) -> Node {
             continue;
         }
 
-        let (new_node, consumed) = parse_stmt(&tokens[ptr..]);
+        if tokens[ptr] == Token::OpenCurly {
+            let close_curly = find_pair_container(tokens, ptr).expect("NO PAIR CURLY BRACE");
+
+            nodes.push(parse(&tokens[ptr + 1..close_curly].to_vec())?.to_box());
+            ptr += close_curly - ptr + 1;
+
+            continue;
+        }
+
+        let (new_node, consumed) = parse_stmt(&tokens[ptr..])?;
 
         assert!(consumed > 0);
 
@@ -20,5 +31,5 @@ pub fn parse(tokens: &Vec<Token>) -> Node {
         ptr += consumed;
     }
 
-    Node::Program(nodes)
+    Ok(Node::Program(nodes))
 }

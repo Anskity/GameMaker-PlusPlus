@@ -1,8 +1,9 @@
 use gamemaker_plus::macros::apply_macros;
 use gamemaker_plus::parser::core::parse;
 use gamemaker_plus::tokenizer::tokenize;
+use std::io::Error;
 
-fn main() {
+fn main() -> Result<(), Error> {
     if !std::path::Path::new("code.gmpp").exists() {
         panic!("Please create a code.gmpp file");
     }
@@ -17,7 +18,9 @@ fn main() {
     apply_macros(&mut code);
 
     let tokens = tokenize(&code);
-    let ast = parse(&tokens);
+    let ast = parse(&tokens)?;
 
     dbg!(ast);
+
+    Ok(())
 }

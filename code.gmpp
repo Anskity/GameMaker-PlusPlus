@@ -1,5 +1,2 @@
-#macro MANAGE_PAUSE if (global.pause) {return;} 
-
-MANAGE_PAUSE;
-do_stuff();
+a = 2;
 
