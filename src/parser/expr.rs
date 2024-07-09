@@ -390,10 +390,12 @@ pub fn parse_component(component: &[Token]) -> Result<Node, Error> {
     if let Token::BinaryOperator(operator_type) = first.unwrap() {
         return match *operator_type {
             OperatorType::Sub => Ok(Node::Neg(parse_expr(&component[1..])?.to_box())),
-            _ => Err(Error::new(
-                ErrorKind::InvalidData,
-                "FIRST OPERATOR IN COMPONENT IS INVALID",
-            )),
+            _ => {
+                throw_err!(format!(
+                    "FIRST OPERATOR IN COMPONENT ISN'T INVALID: {:?}",
+                    operator_type
+                ));
+            }
         };
     }
 

@@ -40,6 +40,10 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
         return parse_enum(tokens);
     }
 
+    if let Token::With = tokens[0] {
+        return parse_with_statement(tokens);
+    }
+
     let semilicon_idx = find_free_token(tokens, &Token::Semilicon, 0);
 
     if semilicon_idx.is_some() {
@@ -195,11 +199,10 @@ fn parse_if_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
 
 fn parse_else_statement(tokens: &[Token]) -> Result<(Option<Node>, usize), Error> {
     assert_eq_or!(tokens[0], Token::Else);
-    assert_eq_or!(tokens[1], Token::OpenCurly);
-    let close_idx = find_pair_container(tokens, 1).unwrap();
+    let (code_node, code_consumed) = parse_stmt(&tokens[1..])?;
 
-    let program_node = parse(&tokens[2..close_idx].to_vec())?;
-    Ok((Some(Node::Else(program_node.to_box())), close_idx + 1))
+    let else_node = Some(Node::Else(code_node.to_box()));
+    Ok((else_node, code_consumed))
 }
 
 fn parse_while_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
@@ -418,4 +421,22 @@ fn parse_enum(tokens: &[Token]) -> Result<(Node, usize), Error> {
         Node::EnumDeclaration(identifier, variant_nodes),
         close_curly + 1,
     ))
+}
+
+fn parse_with_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
+    assert_eq_or!(tokens[0], Token::With);
+    let (inst_node, inst_consumed) = if tokens[1] == Token::OpenParenthesis {
+        let close_parenthesis = find_pair_container(tokens, 1)?;
+        let node = parse_expr(&tokens[2..close_parenthesis])?;
+        (node, close_parenthesis)
+    } else {
+        let consumed = get_avaible_tokens_for_expr(&tokens[1..]);
+        let node = parse_expr(&tokens[1..])?;
+        (node, consumed)
+    };
+
+    let (code_node, code_consumed) = parse_stmt(&tokens[inst_consumed + 1..])?;
+
+    let with_node = Node::With(inst_node.to_box(), code_node.to_box());
+    Ok((with_node, 1 + inst_consumed + code_consumed))
 }
