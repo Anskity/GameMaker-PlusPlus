@@ -3,7 +3,9 @@ use crate::parser_macros::impl_enum_equal;
 pub enum Node {
     //Statements
     Program(Vec<Box<Node>>),
-    VariableDeclaration(Option<DeclarationType>, Box<Node>, Box<Node>),
+    VariableDeclaration(DeclarationType, Vec<Box<Node>>),
+    VariableDeclarationPart(Box<Node>, Option<Box<Node>>),
+    VariableSet(Box<Node>, Box<Node>),
     If(Box<Node>, Box<Node>, Option<Box<Node>>),
     Else(Box<Node>),
     For(Box<Node>, Box<Node>, Box<Node>, Box<Node>),

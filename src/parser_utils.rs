@@ -167,7 +167,7 @@ pub fn split_tokens(tokens: &[Token], separator: Token) -> Vec<&[Token]> {
         if !code_manager.is_free() {
             continue;
         }
-        if *tk == separator {
+        if *tk == separator || i == tokens.len() - 1 {
             sorted_tokens.push(&tokens[last_ptr..i]);
             last_ptr = i + 1;
         }

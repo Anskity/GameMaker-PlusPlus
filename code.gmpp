@@ -1,13 +1,3 @@
-mauro = {
-    vida: 10,
-    hsp: 0,
-    morto: false
-};
-
-while !mauro.morto {
-    if mauro.colidindo_com_inimigo() {
-        mauro.vida--;
-    }
-
-    if (mauro.vida < 0) mauro.morto = true;
+if (a > b) {
+    print(c);
 }

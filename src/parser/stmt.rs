@@ -71,22 +71,26 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
 
         assert_or!(tokens.len() > 2);
 
-        const MODIFIER_TKS: [Token; 4] = [
+        const MODIFIER_TKS: [Token; 5] = [
             Token::IncrementBy,
             Token::DecrementBy,
             Token::MultiplyBy,
             Token::DivideBy,
+            Token::Equals,
         ];
-        for modifier_tk in MODIFIER_TKS.iter() {
-            if find_free_token(tokens, modifier_tk, 0).is_some() {
-                let node = parse_modifier_by(&tokens[0..=semilicon_idx], modifier_tk)?;
-                return Ok((node, semilicon_idx + 1));
+
+        if let Token::Identifier(_) = tokens[0] {
+            for modifier_tk in MODIFIER_TKS.iter() {
+                if find_free_token(&tokens[0..=semilicon_idx], &modifier_tk, 0).is_some() {
+                    let node = parse_modifier_by(&tokens[0..=semilicon_idx], modifier_tk)?;
+                    return Ok((node, semilicon_idx + 1));
+                }
             }
         }
     }
 
     let equals_idx = find_free_token(tokens, &Token::Equals, 0);
-    if equals_idx.is_some() {
+    if tokens[0] == Token::Var || tokens[0] == Token::Const || tokens[0] == Token::Let {
         let equals_idx = equals_idx.unwrap();
         let mut end_idx = semilicon_idx;
 
@@ -124,38 +128,39 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
 }
 
 fn parse_variable_declaration(tokens: &[Token]) -> Result<Node, Error> {
-    let equals_idx = find_free_token(tokens, &Token::Equals, 0);
-    assert_or!(equals_idx.is_some());
-
-    let equals_idx = equals_idx.unwrap();
-
     let variable_type = match &tokens[0] {
-        Token::Var => Some(DeclarationType::Var),
-        Token::Const => Some(DeclarationType::Const),
-        Token::Let => Some(DeclarationType::Let),
-        Token::Identifier(_) => None,
+        Token::Var => DeclarationType::Var,
+        Token::Const => DeclarationType::Const,
+        Token::Let => DeclarationType::Let,
         _ => {
             throw_err!(format!("INVALID FIRST TOKEN: {:?}", tokens[0]));
         }
     };
 
-    let identifier_range_start: usize = if variable_type.is_some() { 1 } else { 0 };
-    let identifier_range = identifier_range_start..equals_idx;
-    let identifier = parse_expr(&tokens[identifier_range])?;
+    let declaration_tokens = split_tokens(&tokens[1..], Token::Comma);
+    dbg!(&declaration_tokens);
+    let mut declarations: Vec<Box<Node>> = Vec::new();
 
-    let end_idx = if let Token::Semilicon = tokens.last().unwrap() {
-        tokens.len() - 1
-    } else {
-        tokens.len()
-    };
+    for tks in declaration_tokens {
+        let var_id = match &tks[0] {
+            Token::Identifier(id) => Node::Identifier(id.clone()),
+            _ => {
+                throw_err!("Identifier wasn't the first token of the declaration");
+            }
+        };
 
-    let init_value = parse_expr(&tokens[(equals_idx + 1)..end_idx])?;
+        let init_value = if tks.get(1) == Some(&Token::Equals) {
+            let expr = parse_expr(&tks[2..])?;
+            Some(expr.to_box())
+        } else {
+            None
+        };
 
-    Ok(Node::VariableDeclaration(
-        variable_type,
-        identifier.to_box(),
-        init_value.to_box(),
-    ))
+        declarations.push(Node::VariableDeclarationPart(var_id.to_box(), init_value).to_box());
+    }
+
+    let var_declaration = Node::VariableDeclaration(variable_type, declarations);
+    Ok(var_declaration)
 }
 
 fn parse_if_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
@@ -250,7 +255,7 @@ fn parse_do_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
 
 fn parse_modifier_by(tokens: &[Token], modifier_tk: &Token) -> Result<Node, Error> {
     assert_eq_or!(*tokens.last().unwrap(), Token::Semilicon);
-    assert_eq_or!(amount_of_tokens(tokens, modifier_tk), 1);
+    assert_eq_or!(tokens.get(1), Some(modifier_tk));
     let modifier_idx: usize = find_free_token(tokens, modifier_tk, 0).unwrap();
 
     let identifier_node = parse_expr(&tokens[..modifier_idx])?;
@@ -281,6 +286,10 @@ fn parse_modifier_by(tokens: &[Token], modifier_tk: &Token) -> Result<Node, Erro
             modifier.to_box(),
         )),
         Token::DivideBy => Ok(Node::DivideBy(identifier_node.to_box(), modifier.to_box())),
+        Token::Equals => Ok(Node::VariableSet(
+            identifier_node.to_box(),
+            modifier.to_box(),
+        )),
         _ => Err(Error::new(
             ErrorKind::InvalidData,
             "INVALID OPERATOR MODIFIER",
