@@ -1,47 +1,13 @@
-///	Feather ignore all
+mauro = {
+    vida: 10,
+    hsp: 0,
+    morto: false
+};
 
-/// @desc Extracts the rgba channels of a color as an array
-/// @param {Constant.Color} color The color to extract from
-/// @returns {Array<Real>}
-/// @pure
-function color_extract_rgba(_color) {
-	return [
-		(_color) & 0xff, //R
-		(_color >> 8) & 0xff, //G
-		(_color >> 16) & 0xff, //B
-		(_color >> 24) & 0xff, //A
-	];
-}
+while !mauro.morto {
+    if mauro.colidindo_com_inimigo() {
+        mauro.vida--;
+    }
 
-///	@desc Takes a rgba values and transforms them into a GameMaker color
-///	@param {Real} red The red value of the color, from 0 to 255
-///	@param {Real} green The green value of the color, from 0 to 255
-///	@param {Real} blue The blue value of the color, from 0 to 255
-///	@param {Real} alpha The alpha value of the color, from 0 to 255
-///	@returns {Constant.Color}
-///	@pure
-function rgba_construct_color(_r, _g, _b, _a) {
-	return	_r & 0xff +
-			_g & 0xff << 8 +
-			_b & 0xff << 16 +
-			_a & 0xff << 24;
-}
-
-///	@desc Mixes a color into another one
-///	@param {Constant.Color} start_color The color to start from
-///	@param {Constant.Color} final_color The color the mix goes
-///	@param {Real} amount The lerp amount
-///	@returns {Constant.Color}
-///	@pure
-function color_mix(_start_color, _final_color, _amount) {
-	var _start_rgba = color_extract_rgba(_start_color);
-	var _final_rgba = color_extract_rgba(_final_color);
-	
-	var _mixed_rgba = [0,0,0,0];
-	
-	for (var i = 0; i < 4; ++i) {
-		_mixed_rgba[i] = lerp(_start_rgba[i], _final_rgba[i], _amount);
-	}
-	
-	return method_call(rgba_construct_color, _mixed_rgba);
+    if (mauro.vida < 0) mauro.morto = true;
 }

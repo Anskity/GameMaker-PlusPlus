@@ -19,7 +19,6 @@ fn main() -> Result<(), Error> {
 
     let tokens = tokenize(&code);
     let ast = parse(&tokens)?;
-
     dbg!(ast);
 
     Ok(())

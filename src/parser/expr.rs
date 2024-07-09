@@ -369,25 +369,25 @@ pub fn parse_expr_components(tokens: &[Token]) -> (Vec<RangeInclusive<usize>>, V
 }
 
 pub fn parse_component(component: &[Token]) -> Result<Node, Error> {
-    let first = component.first();
-    let last = component.last();
+    let first = component.first().unwrap();
+    let last = component.last().unwrap();
     if component.len() == 1 {
-        return parse_primary(first.unwrap());
+        return parse_primary(first);
     }
 
-    if let Token::Exclamation = first.unwrap() {
+    if let Token::Exclamation = first {
         return Ok(Node::Not(parse_expr(&component[1..])?.to_box()));
     }
-    if let Token::Tilde = first.unwrap() {
+    if let Token::Tilde = first {
         return Ok(Node::BitwiseNot(parse_expr(&component[1..])?.to_box()));
     }
 
-    if let Token::Function = first.unwrap() {
+    if let Token::Function = first {
         assert_eq!(component[1], Token::OpenParenthesis);
         return parse_anonymous_function(component);
     }
 
-    if let Token::BinaryOperator(operator_type) = first.unwrap() {
+    if let Token::BinaryOperator(operator_type) = first {
         return match *operator_type {
             OperatorType::Sub => Ok(Node::Neg(parse_expr(&component[1..])?.to_box())),
             _ => {
@@ -399,14 +399,23 @@ pub fn parse_component(component: &[Token]) -> Result<Node, Error> {
         };
     }
 
-    if component.len() == 2 {
-        match (first.unwrap().to_owned(), last.unwrap().to_owned()) {
-            (Token::Identifier(id), Token::SingleIncrement) => return Ok(Node::PostIncrement(id)),
-            (Token::Identifier(id), Token::SingleDecrement) => return Ok(Node::PostDecrement(id)),
-            (Token::SingleIncrement, Token::Identifier(id)) => return Ok(Node::PreIncrement(id)),
-            (Token::SingleDecrement, Token::Identifier(id)) => return Ok(Node::PreDecrement(id)),
-            _ => {}
-        }
+    if *first == Token::IncrementBy || *first == Token::SingleDecrement {
+        let expr = parse_component(&component[1..])?;
+
+        return match first {
+            Token::SingleIncrement => Ok(Node::PreIncrement(expr.to_box())),
+            Token::SingleDecrement => Ok(Node::PreDecrement(expr.to_box())),
+            _ => panic!("????????????"),
+        };
+    }
+    if *last == Token::SingleIncrement || *last == Token::SingleDecrement {
+        let expr = parse_component(&component[0..component.len() - 1])?;
+
+        return match last {
+            Token::SingleIncrement => Ok(Node::PostIncrement(expr.to_box())),
+            Token::SingleDecrement => Ok(Node::PostDecrement(expr.to_box())),
+            _ => panic!("????????????"),
+        };
     }
 
     let dot_idx = find_free_token(component, &Token::Dot, 0);
@@ -415,8 +424,8 @@ pub fn parse_component(component: &[Token]) -> Result<Node, Error> {
         return parse_struct_access(struct_node, &component[dot_idx.unwrap()..]);
     }
 
-    if let Token::OpenParenthesis = first.unwrap() {
-        if let Token::CloseParenthesis = last.unwrap() {
+    if let Token::OpenParenthesis = first {
+        if let Token::CloseParenthesis = last {
             return parse_expr(&component[1..(component.len() - 1)]);
         } else if component.contains(&Token::CloseParenthesis) {
             let end_position = find_free_token(component, &Token::CloseParenthesis, 0).unwrap();
@@ -452,8 +461,8 @@ pub fn parse_component(component: &[Token]) -> Result<Node, Error> {
         }
     }
 
-    if let Token::Identifier(id) = first.unwrap() {
-        match (component.get(1).unwrap(), last.unwrap()) {
+    if let Token::Identifier(id) = first {
+        match (component.get(1).unwrap(), last) {
             (Token::OpenBracket, Token::CloseBracket) => {
                 return parse_array_access(
                     Node::Identifier(id.clone()),
@@ -471,7 +480,7 @@ pub fn parse_component(component: &[Token]) -> Result<Node, Error> {
         };
     }
 
-    if let (Token::OpenCurly, Token::CloseCurly) = (first.unwrap(), last.unwrap()) {
+    if let (Token::OpenCurly, Token::CloseCurly) = (first, last) {
         return parse_struct(component);
     }
 
@@ -487,7 +496,7 @@ pub fn parse_component(component: &[Token]) -> Result<Node, Error> {
         );
     }
 
-    if let (Token::OpenBracket, Token::CloseBracket) = (first.unwrap(), last.unwrap()) {
+    if let (Token::OpenBracket, Token::CloseBracket) = (first, last) {
         return parse_array_constructor(component);
     }
 
@@ -499,10 +508,9 @@ pub fn parse_primary(tk: &Token) -> Result<Node, Error> {
         Token::Identifier(id) => Ok(Node::Identifier(id.clone())),
         Token::NumericLiteral(numb) => Ok(Node::NumericLiteral(numb.clone())),
         Token::String(txt) => Ok(Node::String(txt.clone())),
-        _ => Err(Error::new(
-            ErrorKind::InvalidInput,
-            "Invalid token when parsing primary",
-        )),
+        _ => {
+            throw_err!(format!("Invalid token while parsing primary: {:?}", tk));
+        }
     }
 }
 

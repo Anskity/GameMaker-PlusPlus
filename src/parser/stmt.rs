@@ -44,6 +44,19 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
         return parse_with_statement(tokens);
     }
 
+    if tokens[0] == Token::OpenCurly {
+        let close_curly = find_pair_container(tokens, 0);
+
+        if close_curly.is_ok() {
+            let close_curly = close_curly.unwrap();
+            let program = parse(&tokens[1..close_curly].to_vec());
+
+            if program.is_ok() {
+                return Ok((program.unwrap(), close_curly + 1));
+            }
+        }
+    }
+
     let semilicon_idx = find_free_token(tokens, &Token::Semilicon, 0);
 
     if semilicon_idx.is_some() {
@@ -93,19 +106,6 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
         ));
     }
 
-    if tokens[0] == Token::OpenCurly {
-        let close_curly = find_pair_container(tokens, 0);
-
-        if close_curly.is_ok() {
-            let close_curly = close_curly.unwrap();
-            let program = parse(&tokens[1..close_curly].to_vec());
-
-            if program.is_ok() {
-                return Ok((program.unwrap(), close_curly + 1));
-            }
-        }
-    }
-
     let prepared_tokens = &tokens[..semilicon_idx.unwrap_or_else(|| tokens.len())];
 
     let expr = parse_expr(prepared_tokens)?;
@@ -124,7 +124,6 @@ pub fn parse_stmt(tokens: &[Token]) -> Result<(Node, usize), Error> {
 }
 
 fn parse_variable_declaration(tokens: &[Token]) -> Result<Node, Error> {
-    println!("{:?}", tokens);
     let equals_idx = find_free_token(tokens, &Token::Equals, 0);
     assert_or!(equals_idx.is_some());
 
@@ -135,7 +134,9 @@ fn parse_variable_declaration(tokens: &[Token]) -> Result<Node, Error> {
         Token::Const => Some(DeclarationType::Const),
         Token::Let => Some(DeclarationType::Let),
         Token::Identifier(_) => None,
-        _ => panic!("INVALID FIRST TOKEN: {:?}", tokens[0]),
+        _ => {
+            throw_err!(format!("INVALID FIRST TOKEN: {:?}", tokens[0]));
+        }
     };
 
     let identifier_range_start: usize = if variable_type.is_some() { 1 } else { 0 };
@@ -172,6 +173,7 @@ fn parse_if_statement(tokens: &[Token]) -> Result<(Node, usize), Error> {
     };
 
     let condition_close_idx = condition_consumed;
+
     let (code_node, code_consumed) = parse_stmt(&tokens[condition_close_idx + 1..])?;
 
     let (else_node, else_consumed) = if tokens

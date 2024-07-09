@@ -15,12 +15,15 @@ pub fn parse(tokens: &Vec<Token>) -> Result<Node, Error> {
         }
 
         if tokens[ptr] == Token::OpenCurly {
-            let close_curly = find_pair_container(tokens, ptr).expect("NO PAIR CURLY BRACE");
+            let close_curly = find_pair_container(tokens, ptr)?;
 
-            nodes.push(parse(&tokens[ptr + 1..close_curly].to_vec())?.to_box());
-            ptr += close_curly - ptr + 1;
+            let expr = parse(&tokens[ptr + 1..close_curly].to_vec());
+            if expr.is_ok() {
+                nodes.push(expr?.to_box());
+                ptr += close_curly - ptr + 1;
 
-            continue;
+                continue;
+            }
         }
 
         let (new_node, consumed) = parse_stmt(&tokens[ptr..])?;
