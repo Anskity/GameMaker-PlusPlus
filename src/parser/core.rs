@@ -1,23 +1,23 @@
 use crate::ast::Node;
 use crate::parser::stmt::parse_stmt;
 use crate::parser_utils::find_pair_container;
-use crate::tokenizer::Token;
+use crate::tokenizer::{Token, TokenStruct};
 use std::io::Error;
 
-pub fn parse(tokens: &Vec<Token>) -> Result<Node, Error> {
+pub fn parse(tokens: &[TokenStruct]) -> Result<Node, Error> {
     let mut nodes = Vec::<Box<Node>>::new();
     let mut ptr: usize = 0;
 
     while ptr < tokens.len() {
-        if tokens[ptr] == Token::Semilicon {
+        if tokens[ptr].token == Token::Semilicon {
             ptr += 1;
             continue;
         }
 
-        if tokens[ptr] == Token::OpenCurly {
+        if tokens[ptr].token == Token::OpenCurly {
             let close_curly = find_pair_container(tokens, ptr)?;
 
-            let expr = parse(&tokens[ptr + 1..close_curly].to_vec());
+            let expr = parse(&tokens[ptr + 1..close_curly]);
             if expr.is_ok() {
                 nodes.push(expr?.to_box());
                 ptr += close_curly - ptr + 1;

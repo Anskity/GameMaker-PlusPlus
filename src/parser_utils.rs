@@ -1,22 +1,27 @@
 use crate::ast::Node;
 use crate::parser::expr::parse_expr;
 use crate::parser_macros::*;
-use crate::{code_container::CodeContainerManager, tokenizer::Token};
+use crate::{
+    code_container::CodeContainerManager,
+    tokenizer::{Token, TokenStruct},
+};
 use std::io::{Error, ErrorKind};
-use std::ops::Range;
 
-pub fn amount_of_tokens(tokens: &[Token], search: &Token) -> usize {
+pub fn amount_of_tokens(tokens: &[TokenStruct], search: &Token) -> usize {
     let mut container_manager = CodeContainerManager::new();
     let mut count: usize = 0;
 
     for tk in tokens {
-        container_manager.check(tk);
+        if !container_manager.is_safe(tk) {
+            break;
+        }
+        container_manager.check(tk).unwrap();
 
         if !container_manager.is_free() {
             continue;
         }
 
-        if search == tk {
+        if *search == tk.token {
             count += 1;
         }
     }
@@ -24,18 +29,21 @@ pub fn amount_of_tokens(tokens: &[Token], search: &Token) -> usize {
     count
 }
 
-pub fn find_free_token(tokens: &[Token], search: &Token, offset: usize) -> Option<usize> {
+pub fn find_free_token(tokens: &[TokenStruct], search: &Token, offset: usize) -> Option<usize> {
     let mut idx: usize = 0;
     let mut container_manager = CodeContainerManager::new_ext(true, true, true);
 
     for (i, tk) in tokens.iter().enumerate() {
-        container_manager.check(tk);
+        if !container_manager.is_safe(tk) {
+            break;
+        }
+        container_manager.check(tk).unwrap();
 
         if !container_manager.is_free() {
             continue;
         }
 
-        if tk != search {
+        if tk.token != *search {
             continue;
         }
 
@@ -49,8 +57,8 @@ pub fn find_free_token(tokens: &[Token], search: &Token, offset: usize) -> Optio
     None
 }
 
-pub fn find_pair_container(tokens: &[Token], idx: usize) -> Result<usize, Error> {
-    let start_tk = &tokens[idx];
+pub fn find_pair_container(tokens: &[TokenStruct], idx: usize) -> Result<usize, Error> {
+    let start_tk = &tokens[idx].token;
     let going_forward = match *start_tk {
         Token::OpenParenthesis | Token::OpenCurly | Token::OpenBracket => true,
         Token::CloseParenthesis | Token::CloseCurly | Token::CloseBracket => false,
@@ -64,9 +72,9 @@ pub fn find_pair_container(tokens: &[Token], idx: usize) -> Result<usize, Error>
 
     loop {
         if going_forward {
-            container.check(&tokens[ptr]);
+            container.check(&tokens[ptr])?;
         } else {
-            container.check_reverse(&tokens[ptr]);
+            container.check_reverse(&tokens[ptr])?;
         }
 
         if container.is_free() {
@@ -82,26 +90,16 @@ pub fn find_pair_container(tokens: &[Token], idx: usize) -> Result<usize, Error>
 
     throw_err!("COULDNT FIND PAIR CONTAINER");
 }
-pub fn parse_function_paremeters(tokens: &[Token]) -> Result<Vec<Box<Node>>, Error> {
-    assert_eq!(tokens[0], Token::OpenParenthesis);
-    assert_eq!(*tokens.last().unwrap(), Token::CloseParenthesis);
-    let mut parameter_ranges: Vec<Range<usize>> = Vec::new();
-    let mut code_container = CodeContainerManager::new();
-    let mut last_ptr = 1usize;
-    split_tokens!(
-        tokens,
-        code_container,
-        Token::Comma,
-        last_ptr,
-        parameter_ranges
-    );
+pub fn parse_function_paremeters(tokens: &[TokenStruct]) -> Result<Vec<Box<Node>>, Error> {
+    assert_eq_or!(tokens[0].token, Token::OpenParenthesis);
+    assert_eq_or!(tokens.last().unwrap().token, Token::CloseParenthesis);
+    let parameter_tks = split_tokens(&tokens[1..tokens.len() - 1], Token::Comma);
 
-    let mut parameter_nodes: Vec<Result<Box<Node>, Error>> = parameter_ranges
+    let mut parameter_nodes: Vec<Result<Box<Node>, Error>> = parameter_tks?
         .into_iter()
-        .map(|range| {
-            let tokens = &tokens[range];
+        .map(|tokens| {
             if tokens.len() == 1 {
-                match &tokens[0] {
+                match &tokens[0].token {
                     Token::Identifier(id) => {
                         return Ok(Node::FunctionParemeter(
                             Node::Identifier(id.clone()).to_box(),
@@ -112,10 +110,10 @@ pub fn parse_function_paremeters(tokens: &[Token]) -> Result<Vec<Box<Node>>, Err
                     _ => Err(Error::new(ErrorKind::InvalidData, "INVALID PAREMETER")),
                 }
             } else if tokens.len() > 2 {
-                match (&tokens[0], &tokens[1]) {
+                match (&tokens[0].token, &tokens[1].token) {
                     (Token::Identifier(id), Token::Equals) => {
                         let identifier = Node::Identifier(id.clone());
-                        assert_eq!(tokens[1], Token::Equals);
+                        assert_eq_or!(tokens[1].token, Token::Equals);
                         let default_value: Result<Node, Error> = parse_expr(&tokens[2..]);
 
                         if default_value.is_err() {
@@ -157,21 +155,24 @@ pub fn parse_function_paremeters(tokens: &[Token]) -> Result<Vec<Box<Node>>, Err
     }
 }
 
-pub fn split_tokens(tokens: &[Token], separator: Token) -> Vec<&[Token]> {
+pub fn split_tokens(
+    tokens: &[TokenStruct],
+    separator: Token,
+) -> Result<Vec<&[TokenStruct]>, Error> {
     let mut code_manager = CodeContainerManager::new();
     let mut last_ptr = 0usize;
-    let mut sorted_tokens: Vec<&[Token]> = Vec::new();
+    let mut sorted_tokens: Vec<&[TokenStruct]> = Vec::new();
 
     for (i, tk) in tokens.iter().enumerate() {
-        code_manager.check(tk);
+        code_manager.check(tk)?;
         if !code_manager.is_free() {
             continue;
         }
-        if *tk == separator || i == tokens.len() - 1 {
+        if tk.token == separator || i == tokens.len() - 1 {
             sorted_tokens.push(&tokens[last_ptr..i]);
             last_ptr = i + 1;
         }
     }
 
-    sorted_tokens
+    Ok(sorted_tokens)
 }

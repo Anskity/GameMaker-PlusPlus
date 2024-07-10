@@ -1,41 +1,3 @@
-macro_rules! split_tokens {
-    ($vec:ident, $container_manager: ident, $separator: expr, $ptr_buff: ident, $target: ident) => {
-        for (i, tk) in $vec.iter().enumerate() {
-            if i == 0 || i == $vec.len() - 1 {
-                continue;
-            }
-            $container_manager.check(tk);
-
-            if !$container_manager.is_free() {
-                continue;
-            }
-
-            if *tk == $separator || i == $vec.len() - 2 {
-                let range = if i == $vec.len() - 2 {
-                    ($ptr_buff)..(i + 1)
-                } else {
-                    ($ptr_buff)..i
-                };
-
-                $target.push(range);
-
-                $ptr_buff = i + 1;
-                continue;
-            }
-        }
-    };
-}
-pub(crate) use split_tokens;
-
-macro_rules! apply_range {
-    ($container:ident, $ranges:ident, $target: ident) => {
-        for range in $ranges {
-            $target.push($container[range].to_vec());
-        }
-    };
-}
-pub(crate) use apply_range;
-
 macro_rules! impl_enum_equal {
     ($name:ident) => {
         impl PartialEq for $name {
@@ -86,3 +48,29 @@ macro_rules! throw_err {
     };
 }
 pub(crate) use throw_err;
+
+macro_rules! throw_parse_err {
+    ($start:expr, $end:expr, $explanation:expr) => {
+        let msg = format!(
+            "Error in Start: {:?}\nEnd: {:?}\nExplanation: {:?}\nFile: {:?}\nLine: {:?}",
+            $start,
+            $end,
+            $explanation,
+            file!(),
+            line!()
+        );
+        return Err(Error::new(ErrorKind::InvalidData, msg));
+    };
+    ($text_data:expr, $explanation:expr) => {
+        let msg = format!(
+            "Error in Start: {:?}\nEnd: {:?}\nExplanation: {:?}\nFile: {:?}\nLine: {:?}",
+            $text_data.start,
+            $text_data.end,
+            $explanation,
+            file!(),
+            line!()
+        );
+        return Err(Error::new(ErrorKind::InvalidData, msg));
+    };
+}
+pub(crate) use throw_parse_err;

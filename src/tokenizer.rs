@@ -1,7 +1,7 @@
 use crate::parser_macros::impl_enum_equal;
 use std::ops::Range;
 
-use crate::ast::OperatorType;
+use crate::ast::{OperatorType, TextData};
 
 #[derive(Debug, Clone)]
 pub enum Token {
@@ -57,6 +57,20 @@ pub enum Token {
 }
 
 impl_enum_equal!(Token);
+
+#[derive(Debug)]
+pub struct TokenStruct {
+    pub token: Token,
+    pub text_data: TextData,
+}
+impl TokenStruct {
+    pub fn new(token: Token, text_data: TextData) -> Self {
+        TokenStruct { token, text_data }
+    }
+    pub fn unpack(self) -> Token {
+        self.token
+    }
+}
 
 struct TokenConsumeMessage(Vec<Token>, usize); //(new_tokens, consumed_characters)
 
@@ -287,9 +301,9 @@ impl TokenRecognizer for SingleIncrementDecrementRecognizer {
     }
 }
 
-pub fn tokenize(code: &str) -> Vec<Token> {
+pub fn tokenize(code: &str) -> Vec<TokenStruct> {
     let mut ptr: usize = 0;
-    let mut tokens = Vec::<Token>::new();
+    let mut tokens = Vec::<TokenStruct>::new();
     let recognizers: Vec<Box<dyn TokenRecognizer>> = vec![
         Box::new(IdentifierRecognizer {}),
         Box::new(SingleIncrementDecrementRecognizer {}),
@@ -300,6 +314,12 @@ pub fn tokenize(code: &str) -> Vec<Token> {
     ];
 
     while ptr < code.chars().count() {
+        let prev_new_lines = code[0..=ptr]
+            .match_indices("\n")
+            .collect::<Vec<(usize, &str)>>();
+        let current_line = prev_new_lines.len();
+        let current_chr_idx = ptr;
+
         let chr = code
             .chars()
             .nth(ptr)
@@ -333,9 +353,18 @@ pub fn tokenize(code: &str) -> Vec<Token> {
             .expect(format!("Unexpected token while tokenizing: {}", chr).as_str())
             .consume(&code_left);
 
-        let mut new_tokens = consume_message.0;
+        let new_tokens = consume_message.0;
         let consumed_chars = consume_message.1;
-        tokens.append(&mut new_tokens);
+
+        for tk in new_tokens {
+            let text_data = TextData::new(
+                current_chr_idx,
+                current_chr_idx + consumed_chars - 1,
+                current_line,
+            );
+            let token_struct = TokenStruct::new(tk, text_data);
+            tokens.push(token_struct);
+        }
         ptr += consumed_chars;
 
         if consumed_chars < 1 {

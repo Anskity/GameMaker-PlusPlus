@@ -1,12 +1,17 @@
-use crate::tokenizer::Token;
+use std::io::{Error, ErrorKind};
+
+use crate::{
+    parser_macros::throw_parse_err,
+    tokenizer::{Token, TokenStruct},
+};
 
 pub struct CodeContainerManager {
-    pub bracket_value: usize,
     pub parenthesis_value: usize,
+    pub bracket_value: usize,
     pub curly_value: usize,
 
-    pub check_bracket: bool,
     pub check_parenthesis: bool,
+    pub check_bracket: bool,
     pub check_curly: bool,
 }
 
@@ -29,115 +34,80 @@ impl CodeContainerManager {
     pub fn is_free(&self) -> bool {
         self.bracket_value == 0 && self.parenthesis_value == 0 && self.curly_value == 0
     }
-    pub fn check(&mut self, chr: &Token) {
-        match *chr {
-            Token::OpenParenthesis => {
-                self.parenthesis_value += if self.check_parenthesis { 1 } else { 0 }
-            }
-            Token::CloseParenthesis => {
-                if !self.check_parenthesis {
-                    return;
-                }
 
-                if self.parenthesis_value > 0 {
-                    self.parenthesis_value -= 1
-                } else {
-                    panic!("PARENTHESIS VALUE IS LOWER THAN ZERO");
-                }
-            }
-            Token::OpenCurly => self.curly_value += if self.check_curly { 1 } else { 0 },
-            Token::CloseCurly => {
-                if !self.check_curly {
-                    return;
-                }
-
-                if self.curly_value > 0 {
-                    self.curly_value -= 1
-                } else {
-                    panic!("CURLY VALUE IS LOWER THAN ZERO");
-                }
-            }
-            Token::OpenBracket => self.bracket_value += if self.check_bracket { 1 } else { 0 },
-            Token::CloseBracket => {
-                if !self.check_bracket {
-                    return;
-                }
-
-                if self.bracket_value > 0 {
-                    self.bracket_value -= 1
-                } else {
-                    panic!("BRACKET VALUE IS LOWER THAN ZERO");
-                }
-            }
-
-            _ => {}
-        }
-    }
-    pub fn check_reverse(&mut self, chr: &Token) {
-        match *chr {
-            Token::CloseParenthesis => {
-                self.parenthesis_value += if self.check_parenthesis { 1 } else { 0 }
-            }
-            Token::OpenParenthesis => {
-                if !self.check_parenthesis {
-                    return;
-                }
-
-                if self.parenthesis_value > 0 {
-                    self.parenthesis_value -= 1
-                } else {
-                    panic!("PARENTHESIS VALUE IS LOWER THAN ZERO");
-                }
-            }
-            Token::CloseCurly => self.curly_value += if self.check_curly { 1 } else { 0 },
-            Token::OpenCurly => {
-                if !self.check_curly {
-                    return;
-                }
-
-                if self.curly_value > 0 {
-                    self.curly_value -= 1
-                } else {
-                    panic!("CURLY VALUE IS LOWER THAN ZERO");
-                }
-            }
-            Token::CloseBracket => self.bracket_value += if self.check_bracket { 1 } else { 0 },
-            Token::OpenBracket => {
-                if !self.check_bracket {
-                    return;
-                }
-
-                if self.bracket_value > 0 {
-                    self.bracket_value -= 1
-                } else {
-                    panic!("BRACKET VALUE IS LOWER THAN ZERO");
-                }
-            }
-
-            _ => {}
+    pub fn get_value(token: &Token) -> (i8, i8, i8) {
+        match *token {
+            Token::OpenParenthesis => (1, 0, 0),
+            Token::OpenBracket => (0, 1, 0),
+            Token::OpenCurly => (0, 0, 1),
+            Token::CloseParenthesis => (-1, 0, 0),
+            Token::CloseBracket => (0, -1, 0),
+            Token::CloseCurly => (0, 0, -1),
+            _ => (0, 0, 0),
         }
     }
 
-    pub fn is_safe(&self, tk: &Token) -> bool {
-        match *tk {
-            Token::CloseParenthesis => self.parenthesis_value > 0,
-            Token::CloseCurly => self.curly_value > 0,
-            Token::CloseBracket => self.bracket_value > 0,
-            _ => true,
+    pub fn check_safe(&self, token: &TokenStruct) -> Result<(i8, i8, i8), Error> {
+        let (paren, brack, curly) = Self::get_value(&token.token);
+
+        if paren < 0 && self.parenthesis_value == 0 {
+            throw_parse_err!(token.text_data, format!("No matching parenthesis at"));
         }
+        if brack < 0 && self.bracket_value == 0 {
+            throw_parse_err!(token.text_data, format!("No matching bracket"));
+        }
+        if curly < 0 && self.curly_value == 0 {
+            throw_parse_err!(token.text_data, format!("No matching curly brace"));
+        }
+
+        Ok((paren, brack, curly))
+    }
+    pub fn check_safe_reverse(&self, token: &TokenStruct) -> Result<(i8, i8, i8), Error> {
+        let (paren, brack, curly) = Self::get_value(&token.token);
+        let (paren, brack, curly) = (-paren, -brack, -curly);
+
+        if paren < 0 && self.parenthesis_value == 0 {
+            throw_parse_err!(token.text_data, format!("No matching parenthesis at"));
+        }
+        if brack < 0 && self.bracket_value == 0 {
+            throw_parse_err!(token.text_data, format!("No matching bracket at"));
+        }
+        if curly < 0 && self.curly_value == 0 {
+            throw_parse_err!(token.text_data, format!("No matching curly brace"));
+        }
+
+        Ok((paren, brack, curly))
     }
 
-    pub fn reset(&mut self) {
-        self.parenthesis_value = 0;
-        self.bracket_value = 0;
-        self.curly_value = 0;
+    pub fn apply(&mut self, values: (i8, i8, i8)) {
+        let (paren, brack, curly) = values;
+        self.parenthesis_value = ((self.parenthesis_value as i8) + paren) as usize;
+        self.bracket_value = ((self.bracket_value as i8) + brack) as usize;
+        self.curly_value = ((self.curly_value as i8) + curly) as usize;
     }
 
-    pub fn try_add(&self, tk: &Token) -> Result<(), ()> {
-        if self.is_safe(tk) {
-            Err(())
-        } else {
-            Ok(())
+    pub fn check(&mut self, tk: &TokenStruct) -> Result<(), Error> {
+        let value = self.check_safe(tk);
+
+        if value.is_err() {
+            return Err(value.unwrap_err());
         }
+
+        self.apply(value.unwrap());
+        Ok(())
+    }
+    pub fn check_reverse(&mut self, tk: &TokenStruct) -> Result<(), Error> {
+        let value = self.check_safe_reverse(tk);
+
+        if value.is_err() {
+            return Err(value.unwrap_err());
+        }
+
+        self.apply(value.unwrap());
+        Ok(())
+    }
+
+    pub fn is_safe(&self, tk: &TokenStruct) -> bool {
+        self.check_safe(tk).is_ok()
     }
 }

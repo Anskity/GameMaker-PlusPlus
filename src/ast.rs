@@ -1,4 +1,4 @@
-use crate::parser_macros::impl_enum_equal;
+use crate::{parser_macros::impl_enum_equal, tokenizer::TokenStruct};
 #[derive(Debug, Clone)]
 pub enum Node {
     //Statements
@@ -63,6 +63,39 @@ impl_enum_equal!(Node);
 impl Node {
     pub fn to_box(self) -> Box<Self> {
         Box::new(self)
+    }
+}
+
+#[derive(Debug)]
+pub struct TextData {
+    pub start: usize,
+    pub end: usize,
+    pub line: usize,
+}
+impl TextData {
+    pub fn new(start: usize, end: usize, line: usize) -> Self {
+        TextData { start, end, line }
+    }
+    pub fn from_tokens(tokens: &[TokenStruct]) -> Self {
+        let start = tokens[0].text_data.start;
+        let end = tokens.last().unwrap().text_data.end;
+        let line = tokens[0].text_data.line;
+        TextData { start, end, line }
+    }
+}
+
+#[derive(Debug)]
+pub struct NodeStruct {
+    pub node: Node,
+    pub text_data: TextData,
+}
+impl NodeStruct {
+    pub fn new(node: Node, text_data: TextData) -> Self {
+        NodeStruct { node, text_data }
+    }
+
+    pub fn unpack(self) -> Node {
+        self.node
     }
 }
 
