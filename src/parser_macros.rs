@@ -44,7 +44,7 @@ pub(crate) use assert_or;
 macro_rules! throw_err {
     ($value:expr) => {
         let msg = format!("{:?}\nFile: {:?}\nLine: {:?}", $value, file!(), line!());
-        return Err(Error::new(ErrorKind::InvalidData, msg));
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, msg));
     };
 }
 pub(crate) use throw_err;
