@@ -64,6 +64,17 @@ impl Node {
     pub fn to_box(self) -> Box<Self> {
         Box::new(self)
     }
+
+    //TODO: Handle all cases
+    pub fn for_each(&self, func: impl Fn(&Node)) {
+        use Node::*;
+        match self {
+            NumericLiteral(_) | String(_) | Identifier(_) => {
+                func(self);
+            }
+            _ => panic!("UNHANDLED CASE: {:?}", self),
+        }
+    }
 }
 
 #[derive(Debug)]
