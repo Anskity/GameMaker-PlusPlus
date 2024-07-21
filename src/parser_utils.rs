@@ -169,18 +169,23 @@ pub fn split_tokens(
             continue;
         }
         if tk.token == separator || i == tokens.len() - 1 {
-            let tk_range = if i == tokens.len() - 1 {
-                last_ptr..i + 1
+            if i == last_ptr {
+                sorted_tokens.push(&[]);
+                last_ptr = i + 1;
             } else {
-                last_ptr..i
-            };
-            sorted_tokens.push(&tokens[tk_range]);
-            last_ptr = i + 1;
+                let tk_range = if i == tokens.len() - 1 {
+                    last_ptr..i + 1
+                } else {
+                    last_ptr..i
+                };
+                sorted_tokens.push(&tokens[tk_range]);
+                last_ptr = i + 1;
+            }
         }
     }
 
-    if sorted_tokens.is_empty() && !tokens.is_empty() {
-        sorted_tokens.push(&tokens);
+    if tokens.last().is_some_and(|tk| tk.token == Token::Comma) {
+        sorted_tokens.push(&[]);
     }
 
     Ok(sorted_tokens)

@@ -1,2 +1,1 @@
-let grades: array<number> = 2;
-
+const grades: array<number> = [2, 7, 9, 10, 5, 2, 7];

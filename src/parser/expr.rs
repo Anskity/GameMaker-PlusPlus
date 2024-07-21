@@ -405,17 +405,11 @@ pub fn parse_array_constructor(tokens: &[TokenStruct]) -> Result<Node, Error> {
     assert_eq_or!(tokens.first().unwrap().token, Token::OpenBracket);
     assert_eq_or!(tokens.last().unwrap().token, Token::CloseBracket);
 
-    let element_tokens = split_tokens(tokens, Token::Comma)?;
+    let element_tokens = split_tokens(&tokens[1..tokens.len() - 1], Token::Comma)?;
 
     let mut element_nodes: Vec<Box<Node>> = Vec::new();
-    for element in element_tokens {
-        let end = if let Token::Comma = element.last().unwrap().token {
-            element.len()
-        } else {
-            element.len() - 1
-        };
-
-        let expr = parse_expr(&element[0..end])?;
+    for element in element_tokens.iter().filter(|tks| !tks.is_empty()) {
+        let expr = parse_expr(element)?;
         element_nodes.push(expr.to_box());
     }
 
