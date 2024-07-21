@@ -92,21 +92,6 @@ impl TextData {
     }
 }
 
-#[derive(Debug)]
-pub struct NodeStruct {
-    pub node: Node,
-    pub text_data: TextData,
-}
-impl NodeStruct {
-    pub fn new(node: Node, text_data: TextData) -> Self {
-        NodeStruct { node, text_data }
-    }
-
-    pub fn unpack(self) -> Node {
-        self.node
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum DeclarationType {
     Var,
