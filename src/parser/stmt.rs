@@ -98,10 +98,7 @@ pub fn parse_stmt(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
             end_idx = Some(close_curly);
         }
         let end_idx = end_idx.unwrap();
-        return Ok((
-            parse_variable_declaration(&tokens[..=end_idx])?,
-            end_idx + 1,
-        ));
+        return Ok((parse_variable_declaration(&tokens[..end_idx])?, end_idx + 1));
     }
 
     let prepared_tokens = &tokens[..semilicon_idx.unwrap_or_else(|| tokens.len())];
@@ -127,7 +124,7 @@ fn parse_variable_declaration(tokens: &[TokenStruct]) -> Result<Node, Error> {
         Token::Const => DeclarationType::Const,
         Token::Let => DeclarationType::Let,
         _ => {
-            throw_err!(format!("INVALID FIRST TOKEN: {:?}", tokens[0]));
+            throw_err!(format!("INVALID DECLARATION TYPE: {:?}", tokens[0]));
         }
     };
 

@@ -292,13 +292,11 @@ pub fn parse_component(component: &[TokenStruct]) -> Result<Node, Error> {
     if let Token::Identifier(id) = &first.token {
         match &component.get(1).unwrap().token {
             Token::OpenBracket => {
-                let pair_idx = find_pair_container(component, 1)?;
-                return parse_array_access(Node::Identifier(id.clone()), &component[1..=pair_idx]);
+                return parse_array_access(Node::Identifier(id.clone()), &component[1..]);
             }
 
             Token::OpenParenthesis => {
-                let pair_idx = find_pair_container(component, 1)?;
-                return parse_function_call(Node::Identifier(id.clone()), &component[1..=pair_idx]);
+                return parse_function_call(Node::Identifier(id.clone()), &component[1..]);
             }
             _ => {}
         }
@@ -514,12 +512,11 @@ pub fn parse_function_call(
     let mut arguments: Vec<Box<Node>> = Vec::new();
 
     for tks in fixed_argument_tokens.iter() {
-        println!("{:?}", tks);
         let expr = parse_expr(tks)?;
         arguments.push(expr.to_box());
     }
 
-    if fixed_argument_tokens.len() == argument_tokens.len() - 2 {
+    if argument_tokens.len() == close_parenthesis + 1 {
         Ok(Node::FunctionCall(func_node.to_box(), arguments))
     } else {
         let call_node = Node::FunctionCall(func_node.to_box(), arguments);

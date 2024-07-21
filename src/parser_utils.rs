@@ -169,7 +169,12 @@ pub fn split_tokens(
             continue;
         }
         if tk.token == separator || i == tokens.len() - 1 {
-            sorted_tokens.push(&tokens[last_ptr..=i]);
+            let tk_range = if i == tokens.len() - 1 {
+                last_ptr..i + 1
+            } else {
+                last_ptr..i
+            };
+            sorted_tokens.push(&tokens[tk_range]);
             last_ptr = i + 1;
         }
     }
