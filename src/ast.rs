@@ -56,6 +56,7 @@ pub enum Node {
     DsMapAccess(Box<Node>, Box<Node>),
     DsGridAccess(Box<Node>, Box<Node>, Box<Node>),
     StructKeyAccess(Box<Node>, Box<Node>),
+    Type(String),
 }
 
 impl_enum_equal!(Node);

@@ -35,7 +35,7 @@ macro_rules! assert_or {
                 file!(),
                 line!()
             );
-            return Err(Error::new(ErrorKind::InvalidData, msg));
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, msg));
         }
     };
 }
@@ -70,7 +70,7 @@ macro_rules! throw_parse_err {
             file!(),
             $text_data.line,
         );
-        return Err(Error::new(ErrorKind::InvalidData, msg));
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, msg));
     };
 }
 pub(crate) use throw_parse_err;

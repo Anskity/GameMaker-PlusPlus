@@ -1,4 +1,4 @@
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
 use crate::{
     parser_macros::throw_parse_err,

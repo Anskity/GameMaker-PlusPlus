@@ -1,7 +1,6 @@
 use gamemaker_plus::macros::apply_macros;
 use gamemaker_plus::parser::core::parse;
 use gamemaker_plus::tokenizer::tokenize;
-use gamemaker_plus::verifier::core::verify_code;
 use std::io::Error;
 
 fn main() -> Result<(), Error> {
@@ -20,7 +19,7 @@ fn main() -> Result<(), Error> {
 
     let tokens = tokenize(&code);
     let ast = parse(&tokens)?;
-    verify_code(ast)?;
+    dbg!(ast);
 
     Ok(())
 }
