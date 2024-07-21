@@ -6,7 +6,7 @@ use crate::{
     tokenizer::{Token, TokenStruct},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DataType {
     Number,
     String,

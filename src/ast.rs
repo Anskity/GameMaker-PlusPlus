@@ -1,10 +1,10 @@
-use crate::{parser_macros::impl_enum_equal, tokenizer::TokenStruct};
+use crate::{parser_macros::impl_enum_equal, tokenizer::TokenStruct, verifier::types::DataType};
 #[derive(Debug, Clone)]
 pub enum Node {
     //Statements
     Program(Vec<Box<Node>>),
     VariableDeclaration(DeclarationType, Vec<Box<Node>>),
-    VariableDeclarationPart(Box<Node>, Option<Box<Node>>),
+    VariableDeclarationPart(Box<Node>, Option<DataType>, Option<Box<Node>>),
     VariableSet(Box<Node>, Box<Node>),
     If(Box<Node>, Box<Node>, Option<Box<Node>>),
     Else(Box<Node>),

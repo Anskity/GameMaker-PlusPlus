@@ -63,6 +63,7 @@ pub struct TokenStruct {
     pub token: Token,
     pub text_data: TextData,
 }
+
 impl TokenStruct {
     pub fn new(token: Token, text_data: TextData) -> Self {
         TokenStruct { token, text_data }

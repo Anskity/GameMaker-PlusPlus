@@ -12,6 +12,8 @@ use crate::parser_utils::parse_function_paremeters;
 use crate::parser_utils::split_tokens;
 use crate::tokenizer::Token;
 use crate::tokenizer::TokenStruct;
+use crate::verifier::types::parse_type;
+use crate::verifier::types::DataType;
 
 pub fn parse_stmt(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
     match &tokens[0].token {
@@ -85,10 +87,10 @@ pub fn parse_stmt(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
 
     let equals_idx = find_free_token(tokens, &Token::Equals, 0);
     if [Token::Var, Token::Const, Token::Let].contains(&tokens[0].token) {
-        let equals_idx = equals_idx.unwrap();
         let mut end_idx = semilicon_idx;
 
         if end_idx.is_none() {
+            let equals_idx = equals_idx.unwrap();
             assert_eq_or!(tokens[equals_idx + 1].token, Token::Function);
             assert_eq_or!(tokens[equals_idx + 2].token, Token::OpenParenthesis);
             let close_parenthesis = find_pair_container(tokens, equals_idx + 2).unwrap();
@@ -139,17 +141,29 @@ fn parse_variable_declaration(tokens: &[TokenStruct]) -> Result<Node, Error> {
             }
         };
 
+        let mut ptr: usize = 1;
+        let mut data_type: Option<DataType> = None;
+
+        if tks.get(1).is_some_and(|tk| tk.token == Token::Colon) {
+            let equals_idx = find_free_token(tks, &Token::Equals, 0).unwrap_or_else(|| tks.len());
+            let comma_idx = find_free_token(tks, &Token::Comma, 0).unwrap_or_else(|| tks.len());
+
+            ptr = equals_idx.min(comma_idx);
+            data_type = Some(parse_type(&tks[2..ptr])?);
+        }
+
         let init_value = if tks
-            .get(1)
+            .get(ptr)
             .is_some_and(|tk_struct| tk_struct.token == Token::Equals)
         {
-            let expr = parse_expr(&tks[2..])?;
+            let expr = parse_expr(&tks[ptr + 1..])?;
             Some(expr.to_box())
         } else {
             None
         };
 
-        declarations.push(Node::VariableDeclarationPart(var_id.to_box(), init_value).to_box());
+        declarations
+            .push(Node::VariableDeclarationPart(var_id.to_box(), data_type, init_value).to_box());
     }
 
     let var_declaration = Node::VariableDeclaration(variable_type, declarations);
