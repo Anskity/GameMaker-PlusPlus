@@ -1,4 +1,4 @@
-use crate::ast::{Node, OperatorType};
+use crate::ast::{Node, OperatorType, TextData};
 use crate::code_container::CodeContainerManager;
 use crate::parser::core::parse;
 use crate::parser_macros::*;
@@ -21,6 +21,7 @@ pub fn get_avaible_tokens_for_expr(tokens: &[TokenStruct]) -> usize {
 
         if tk.token == Token::Function {
             numb += 1;
+            let mut should_break = false;
             let mut temp_container = CodeContainerManager::new();
             if temp_container.check(&tokens[numb]).is_err() {
                 break;
@@ -28,7 +29,14 @@ pub fn get_avaible_tokens_for_expr(tokens: &[TokenStruct]) -> usize {
 
             while !temp_container.is_free() && numb < tokens.len() {
                 numb += 1;
-                container.check(&tokens[numb]).unwrap();
+
+                if container.check(&tokens[numb]).is_err() {
+                    should_break = true;
+                    break;
+                }
+            }
+            if should_break {
+                break;
             }
             numb += 1;
             if temp_container.check(&tokens[numb]).is_err() {
@@ -36,7 +44,13 @@ pub fn get_avaible_tokens_for_expr(tokens: &[TokenStruct]) -> usize {
             }
             while !temp_container.is_free() && numb < tokens.len() {
                 numb += 1;
-                container.check(&tokens[numb]).unwrap();
+                if container.check(&tokens[numb]).is_err() {
+                    should_break = true;
+                    break;
+                }
+            }
+            if should_break {
+                break;
             }
 
             continue;
@@ -103,6 +117,7 @@ pub fn parse_expr(tokens: &[TokenStruct]) -> Result<Node, Error> {
 
     for range in ranges {
         let component = &tokens[range];
+
         components.push(parse_component(&component)?);
     }
 
@@ -187,7 +202,19 @@ pub fn parse_expr_components(
         }
         if ptr == tokens.len() - 1 {
             let right: usize = ptr + 0;
-            ranges.push((last_ptr as usize)..=right);
+            let new_range = (last_ptr as usize)..=right;
+
+            if new_range.is_empty() {
+                println!("{:?} ..= {:?}", last_ptr, right);
+                let first_text_data = &tokens.last().unwrap().text_data;
+                let last_text_data = &tokens.last().unwrap().text_data;
+
+                let text_data = TextData::from_pair(first_text_data, last_text_data);
+
+                throw_parse_err!(text_data, "Empty component");
+            }
+
+            ranges.push(new_range);
         }
     }
 

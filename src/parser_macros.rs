@@ -68,7 +68,7 @@ macro_rules! throw_parse_err {
             $text_data.end,
             $explanation,
             file!(),
-            line!()
+            $text_data.line,
         );
         return Err(Error::new(ErrorKind::InvalidData, msg));
     };

@@ -18,7 +18,7 @@ fn main() -> Result<(), Error> {
     apply_macros(&mut code);
 
     let tokens = tokenize(&code);
-    let ast = parse(&tokens)?;
+    let ast = parse(&tokens);
     dbg!(ast);
 
     Ok(())

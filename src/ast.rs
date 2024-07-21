@@ -82,6 +82,14 @@ impl TextData {
         let line = tokens[0].text_data.line;
         TextData { start, end, line }
     }
+
+    pub fn from_pair(left: &TextData, right: &TextData) -> Self {
+        TextData {
+            start: left.start,
+            end: right.end,
+            line: left.line,
+        }
+    }
 }
 
 #[derive(Debug)]
