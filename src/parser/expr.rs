@@ -290,19 +290,15 @@ pub fn parse_component(component: &[TokenStruct]) -> Result<Node, Error> {
     }
 
     if let Token::Identifier(id) = &first.token {
-        match (&component.get(1).unwrap().token, &last.token) {
-            (Token::OpenBracket, Token::CloseBracket) => {
-                return parse_array_access(
-                    Node::Identifier(id.clone()),
-                    &component[1..component.len()],
-                )
+        match &component.get(1).unwrap().token {
+            Token::OpenBracket => {
+                let pair_idx = find_pair_container(component, 1)?;
+                return parse_array_access(Node::Identifier(id.clone()), &component[1..=pair_idx]);
             }
 
-            (Token::OpenParenthesis, Token::CloseParenthesis) => {
-                return parse_function_call(
-                    Node::Identifier(id.clone()),
-                    &component[1..component.len()],
-                )
+            Token::OpenParenthesis => {
+                let pair_idx = find_pair_container(component, 1)?;
+                return parse_function_call(Node::Identifier(id.clone()), &component[1..=pair_idx]);
             }
             _ => {}
         }
@@ -518,6 +514,7 @@ pub fn parse_function_call(
     let mut arguments: Vec<Box<Node>> = Vec::new();
 
     for tks in fixed_argument_tokens.iter() {
+        println!("{:?}", tks);
         let expr = parse_expr(tks)?;
         arguments.push(expr.to_box());
     }

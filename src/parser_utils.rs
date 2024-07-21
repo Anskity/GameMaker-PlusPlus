@@ -169,9 +169,13 @@ pub fn split_tokens(
             continue;
         }
         if tk.token == separator || i == tokens.len() - 1 {
-            sorted_tokens.push(&tokens[last_ptr..i]);
+            sorted_tokens.push(&tokens[last_ptr..=i]);
             last_ptr = i + 1;
         }
+    }
+
+    if sorted_tokens.is_empty() && !tokens.is_empty() {
+        sorted_tokens.push(&tokens);
     }
 
     Ok(sorted_tokens)

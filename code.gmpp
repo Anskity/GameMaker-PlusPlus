@@ -1,5 +1,1 @@
-if life > 0 {
-    do_this_things();
-} else {
-    die();
-}
+let null = foo(bar);
