@@ -64,23 +64,24 @@ pub fn parse_stmt(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
                 semilicon_idx + 1,
             ));
         }
+    }
 
-        assert_or!(tokens.len() > 2);
-
-        const MODIFIER_TKS: [Token; 5] = [
+    if let Token::Identifier(_) = &tokens[0].token {
+        const MODIFIER_TKS: [Token; 6] = [
             Token::IncrementBy,
             Token::DecrementBy,
             Token::MultiplyBy,
             Token::DivideBy,
+            Token::ModBy,
             Token::Equals,
         ];
+        assert_or!(tokens.len() > 2);
+        let semilicon_idx = semilicon_idx.unwrap();
 
-        if let Token::Identifier(_) = &tokens[0].token {
-            for modifier_tk in MODIFIER_TKS.iter() {
-                if find_free_token(&tokens[0..=semilicon_idx], &modifier_tk, 0).is_some() {
-                    let node = parse_modifier_by(&tokens[0..=semilicon_idx], modifier_tk)?;
-                    return Ok((node, semilicon_idx + 1));
-                }
+        for modifier_tk in MODIFIER_TKS.iter() {
+            if find_free_token(&tokens[0..=semilicon_idx], &modifier_tk, 0).is_some() {
+                let node = parse_modifier_by(&tokens[0..=semilicon_idx], modifier_tk)?;
+                return Ok((node, semilicon_idx + 1));
             }
         }
     }
@@ -284,7 +285,12 @@ fn parse_modifier_by(tokens: &[TokenStruct], modifier_tk: &Token) -> Result<Node
         }
     }
 
-    let modifier = parse_expr(&tokens[modifier_idx + 1..tokens.len() - 1])?;
+    let modifier_range = if let Token::Semilicon = tokens[tokens.len() - 1].token {
+        modifier_idx + 1..tokens.len() - 1
+    } else {
+        modifier_idx + 1..tokens.len()
+    };
+    let modifier = parse_expr(&tokens[modifier_range])?;
 
     match *modifier_tk {
         Token::IncrementBy => Ok(Node::IncrementBy(
@@ -299,6 +305,7 @@ fn parse_modifier_by(tokens: &[TokenStruct], modifier_tk: &Token) -> Result<Node
             identifier_node.to_box(),
             modifier.to_box(),
         )),
+        Token::ModBy => Ok(Node::ModBy(identifier_node.to_box(), modifier.to_box())),
         Token::DivideBy => Ok(Node::DivideBy(identifier_node.to_box(), modifier.to_box())),
         Token::Equals => Ok(Node::VariableSet(
             identifier_node.to_box(),
@@ -342,7 +349,7 @@ fn parse_function_declaration(tokens: &[TokenStruct]) -> Result<(Node, usize), E
     let close_curly = find_pair_container(tokens, curly_idx)
         .expect("NO PAIR CURLY BRACE WHEN PARSING FUNCTION DECLARATION");
 
-    let params = parse_function_paremeters(&tokens[2..=close_parenthesis])?;
+    let params = parse_function_paremeters(&tokens[3..close_parenthesis])?;
     let program = parse(&tokens[curly_idx + 1..close_curly])?;
 
     Ok((
@@ -374,19 +381,16 @@ fn parse_for_loop(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
 
     let first_semilicon = find_free_token(&tokens[2..], &Token::Semilicon, 0);
     let second_semilicon = find_free_token(&tokens[2..], &Token::Semilicon, 1);
-    let third_semilicon = find_free_token(&tokens[2..], &Token::Semilicon, 2);
 
     assert_or!(first_semilicon.is_some());
     assert_or!(second_semilicon.is_some());
-    assert_or!(third_semilicon.is_some());
 
     let first_semilicon = first_semilicon.unwrap() + 2;
     let second_semilicon = second_semilicon.unwrap() + 2;
-    let third_semilicon = third_semilicon.unwrap() + 2;
 
     let first_attribute_tks = &tokens[2..=first_semilicon];
     let second_attribute_tks = &tokens[first_semilicon + 1..second_semilicon];
-    let third_attribute_tks = &tokens[second_semilicon + 1..=third_semilicon];
+    let third_attribute_tks = &tokens[second_semilicon + 1..close_parenthesis];
 
     let attribute_tokens = &[
         first_attribute_tks,
@@ -418,7 +422,6 @@ fn parse_for_loop(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
 }
 
 fn parse_enum(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
-    dbg!(&tokens);
     assert_eq_or!(tokens[0].token, Token::Enum);
     let identifier = match &tokens[1].token {
         Token::Identifier(id) => id.clone(),

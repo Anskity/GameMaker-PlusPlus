@@ -128,7 +128,10 @@ pub fn parse_expr(tokens: &[TokenStruct]) -> Result<Node, Error> {
         insert_idx_buff += 1;
     }
 
-    parse_operators_on_components(&mut components, &[OperatorType::Mul, OperatorType::Div]);
+    parse_operators_on_components(
+        &mut components,
+        &[OperatorType::Mul, OperatorType::Div, OperatorType::Mod],
+    );
     parse_operators_on_components(&mut components, &[OperatorType::Add, OperatorType::Sub]);
     parse_operators_on_components(
         &mut components,
@@ -222,6 +225,7 @@ pub fn parse_expr_components(
 }
 
 pub fn parse_component(component: &[TokenStruct]) -> Result<Node, Error> {
+    dbg!(&component);
     let first = component.first().unwrap();
     let last = component.last().unwrap();
     if component.len() == 1 {
@@ -252,7 +256,7 @@ pub fn parse_component(component: &[TokenStruct]) -> Result<Node, Error> {
         };
     }
 
-    if first.token == Token::IncrementBy || first.token == Token::SingleDecrement {
+    if first.token == Token::SingleIncrement || first.token == Token::SingleDecrement {
         let expr = parse_component(&component[1..])?;
 
         return match first.token {
@@ -550,7 +554,7 @@ fn parse_anonymous_function(tokens: &[TokenStruct]) -> Result<Node, Error> {
     assert_eq_or!(tokens[1].token, Token::OpenParenthesis);
     let close_parenthesis = find_pair_container(tokens, 1)?;
 
-    let paramethers = parse_function_paremeters(&tokens[1..=close_parenthesis])?;
+    let parameters = parse_function_paremeters(&tokens[2..close_parenthesis])?;
 
     assert_eq!(tokens[close_parenthesis + 1].token, Token::OpenCurly);
     let close_curly = find_pair_container(tokens, close_parenthesis + 1)?;
@@ -558,7 +562,7 @@ fn parse_anonymous_function(tokens: &[TokenStruct]) -> Result<Node, Error> {
     let code_node = parse(&tokens[close_parenthesis + 2..close_curly])?;
 
     Ok(Node::AnonymousFunctionDeclaration(
-        paramethers,
+        parameters,
         code_node.to_box(),
     ))
 }

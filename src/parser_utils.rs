@@ -1,11 +1,12 @@
-use crate::ast::Node;
-use crate::parser::expr::parse_expr;
+use crate::ast::{Node, TextData};
+use crate::parser::expr::{parse_expr, parse_primary};
 use crate::parser_macros::*;
+use crate::verifier::types::{parse_type, DataType};
 use crate::{
     code_container::CodeContainerManager,
     tokenizer::{Token, TokenStruct},
 };
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
 pub fn amount_of_tokens(tokens: &[TokenStruct], search: &Token) -> usize {
     let mut container_manager = CodeContainerManager::new();
@@ -91,74 +92,62 @@ pub fn find_pair_container(tokens: &[TokenStruct], idx: usize) -> Result<usize, 
     throw_err!("COULDNT FIND PAIR CONTAINER");
 }
 pub fn parse_function_paremeters(tokens: &[TokenStruct]) -> Result<Vec<Box<Node>>, Error> {
-    assert_eq_or!(tokens[0].token, Token::OpenParenthesis);
-    assert_eq_or!(tokens.last().unwrap().token, Token::CloseParenthesis);
-    let parameter_tks = split_tokens(&tokens[1..tokens.len() - 1], Token::Comma);
+    let parameter_tks = split_tokens(tokens, Token::Comma)?;
+    let mut parameter_nodes: Vec<Box<Node>> = Vec::new();
 
-    let mut parameter_nodes: Vec<Result<Box<Node>, Error>> = parameter_tks?
-        .into_iter()
-        .map(|tokens| {
-            if tokens.len() == 1 {
-                match &tokens[0].token {
-                    Token::Identifier(id) => {
-                        return Ok(Node::FunctionParemeter(
-                            Node::Identifier(id.clone()).to_box(),
-                            None,
-                        )
-                        .to_box());
-                    }
-                    _ => Err(Error::new(ErrorKind::InvalidData, "INVALID PAREMETER")),
-                }
-            } else if tokens.len() > 2 {
-                match (&tokens[0].token, &tokens[1].token) {
-                    (Token::Identifier(id), Token::Equals) => {
-                        let identifier = Node::Identifier(id.clone());
-                        assert_eq_or!(tokens[1].token, Token::Equals);
-                        let default_value: Result<Node, Error> = parse_expr(&tokens[2..]);
+    for tks in parameter_tks.into_iter().filter(|tks| !tks.is_empty()) {
+        if let Token::Identifier(_) = tks[0].token {
+        } else {
+            throw_parse_err!(tks[0].text_data, "Expected an identifier");
+        }
+        let identifier = parse_primary(&tks[0])?;
+        let mut ptr: usize = 1;
 
-                        if default_value.is_err() {
-                            return Err(Error::new(
-                                ErrorKind::InvalidData,
-                                "INVALID DEFAULT VALUE FOR FUNCTION PAREMETER",
-                            ));
-                        }
-                        let default_value = default_value.unwrap();
+        if ptr >= tks.len() {
+            let node = Node::FunctionParemeter(identifier.to_box(), None, None);
+            parameter_nodes.push(node.to_box());
+            continue;
+        }
 
-                        return Ok(Node::FunctionParemeter(
-                            identifier.to_box(),
-                            Some(default_value.to_box()),
-                        )
-                        .to_box());
-                    }
-                    _ => Err(Error::new(ErrorKind::InvalidData, "INVALID PAREMETER")),
-                }
-            } else {
-                Err(Error::new(ErrorKind::InvalidData, "INVALID PAREMETER"))
-            }
-        })
-        .collect();
+        let mut data_type: Option<DataType> = None;
 
-    let err_idx = parameter_nodes.iter().position(|result| result.is_err());
-    if err_idx.is_some() {
-        let err_idx = err_idx.unwrap();
-        let unsafe_result = parameter_nodes.remove(err_idx);
-        Err(Error::new(
-            ErrorKind::InvalidData,
-            unsafe_result.unwrap_err(),
-        ))
-    } else {
-        let safe_nodes: Vec<Box<Node>> = parameter_nodes
-            .into_iter()
-            .map(|result| result.unwrap())
-            .collect();
-        Ok(safe_nodes)
+        if let Token::Colon = tks[1].token {
+            let equals_idx = find_free_token(tks, &Token::Equals, 0).unwrap_or_else(|| tks.len());
+            let type_tks = &tks[2..equals_idx];
+            data_type = Some(parse_type(type_tks)?);
+
+            ptr = equals_idx;
+        }
+
+        if ptr >= tks.len() {
+            let node = Node::FunctionParemeter(identifier.to_box(), data_type, None);
+            parameter_nodes.push(node.to_box());
+            continue;
+        }
+
+        if let Token::Equals = tks[ptr].token {
+        } else {
+            throw_parse_err!(tks[0].text_data, "Expected an equals sign");
+        }
+
+        let expr_tks = &tks[ptr + 1..];
+        let expr = parse_expr(expr_tks)?;
+
+        let node = Node::FunctionParemeter(identifier.to_box(), data_type, Some(expr.to_box()));
+        parameter_nodes.push(node.to_box());
     }
+
+    Ok(parameter_nodes)
 }
 
 pub fn split_tokens(
     tokens: &[TokenStruct],
     separator: Token,
 ) -> Result<Vec<&[TokenStruct]>, Error> {
+    if tokens.len() == 1 {
+        return Ok(vec![tokens]);
+    }
+
     let mut code_manager = CodeContainerManager::new();
     let mut last_ptr = 0usize;
     let mut sorted_tokens: Vec<&[TokenStruct]> = Vec::new();
@@ -186,6 +175,11 @@ pub fn split_tokens(
 
     if tokens.last().is_some_and(|tk| tk.token == Token::Comma) {
         sorted_tokens.push(&[]);
+    }
+
+    if !code_manager.is_free() {
+        let text_data = TextData::from_tokens(tokens);
+        throw_parse_err!(text_data, "Unclosed container");
     }
 
     Ok(sorted_tokens)

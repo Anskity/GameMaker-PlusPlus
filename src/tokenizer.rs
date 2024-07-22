@@ -35,6 +35,7 @@ pub enum Token {
     DecrementBy,
     MultiplyBy,
     DivideBy,
+    ModBy,
 
     Function,
     Return,
@@ -150,6 +151,7 @@ impl SubstrRecognizer {
             ("-", Token::BinaryOperator(OperatorType::Sub)),
             ("*", Token::BinaryOperator(OperatorType::Mul)),
             ("/", Token::BinaryOperator(OperatorType::Div)),
+            ("%", Token::BinaryOperator(OperatorType::Mod)),
             (">", Token::BinaryOperator(OperatorType::Gt)),
             ("<", Token::BinaryOperator(OperatorType::Lt)),
             (">=", Token::BinaryOperator(OperatorType::GtE)),
@@ -185,6 +187,7 @@ impl SubstrRecognizer {
             ("-=", Token::DecrementBy),
             ("*=", Token::MultiplyBy),
             ("/=", Token::DivideBy),
+            ("%=", Token::ModBy),
         ]);
 
         Self { char_map }
