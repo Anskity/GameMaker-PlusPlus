@@ -418,6 +418,7 @@ fn parse_for_loop(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
 }
 
 fn parse_enum(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
+    dbg!(&tokens);
     assert_eq_or!(tokens[0].token, Token::Enum);
     let identifier = match &tokens[1].token {
         Token::Identifier(id) => id.clone(),
@@ -432,7 +433,7 @@ fn parse_enum(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
 
     let mut variant_nodes: Vec<Box<Node>> = Vec::new();
 
-    for tks in variant_tokens {
+    for tks in variant_tokens.into_iter().filter(|tks| !tks.is_empty()) {
         let id = match &tks[0].token {
             Token::Identifier(id) => id.clone(),
             _ => {
