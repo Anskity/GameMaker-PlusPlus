@@ -1,5 +1,5 @@
-use crate::{parser_macros::impl_enum_equal, tokenizer::TokenStruct, verifier::types::DataType};
-#[derive(Debug, Clone)]
+use crate::{tokenizer::TokenStruct, verifier::types::DataType};
+#[derive(Debug, Clone, PartialEq)]
 pub enum Node {
     //Statements
     Program(Vec<Box<Node>>),
@@ -60,8 +60,6 @@ pub enum Node {
     Type(String),
 }
 
-impl_enum_equal!(Node);
-
 impl Node {
     pub fn to_box(self) -> Box<Self> {
         Box::new(self)
@@ -75,6 +73,13 @@ impl Node {
                 func(self);
             }
             _ => panic!("UNHANDLED CASE: {:?}", self),
+        }
+    }
+
+    pub fn to_code(self) -> Self {
+        match self {
+            Node::Program(_) => self,
+            _ => Node::Program(vec![self.to_box()]),
         }
     }
 }
@@ -105,7 +110,7 @@ impl TextData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DeclarationType {
     Var,
     Const,

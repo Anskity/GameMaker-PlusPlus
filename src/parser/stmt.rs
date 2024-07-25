@@ -76,13 +76,20 @@ pub fn parse_stmt(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
             Token::Equals,
         ];
         assert_or!(tokens.len() > 2);
-        let semilicon_idx = semilicon_idx.unwrap();
+        let identifier_avaible_tks = get_avaible_tokens_for_expr(tokens);
 
         for modifier_tk in MODIFIER_TKS.iter() {
-            if find_free_token(&tokens[0..=semilicon_idx], &modifier_tk, 0).is_some() {
-                let node = parse_modifier_by(&tokens[0..=semilicon_idx], modifier_tk)?;
-                return Ok((node, semilicon_idx + 1));
+            if tokens[identifier_avaible_tks].token != *modifier_tk {
+                continue;
             }
+            let avaible_expr_tks =
+                get_avaible_tokens_for_expr(&tokens[identifier_avaible_tks + 1..]);
+            println!("{:?}", avaible_expr_tks);
+
+            let end_idx = identifier_avaible_tks + avaible_expr_tks + 1;
+
+            let node = parse_modifier_by(&tokens[0..=end_idx], modifier_tk)?;
+            return Ok((node, end_idx + 1));
         }
     }
 
@@ -198,6 +205,8 @@ fn parse_if_statement(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
         (None, 0)
     };
 
+    let code_node = code_node.to_code();
+
     Ok((
         Node::If(
             condition_node.to_box(),
@@ -215,6 +224,8 @@ fn parse_if_statement(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
 fn parse_else_statement(tokens: &[TokenStruct]) -> Result<(Option<Node>, usize), Error> {
     assert_eq_or!(tokens[0].token, Token::Else);
     let (code_node, code_consumed) = parse_stmt(&tokens[1..])?;
+
+    let code_node = code_node.to_code();
 
     let else_node = Some(Node::Else(code_node.to_box()));
     Ok((else_node, code_consumed + 1))
@@ -235,6 +246,7 @@ fn parse_while_statement(tokens: &[TokenStruct]) -> Result<(Node, usize), Error>
         };
 
     let (code_node, code_consumed) = parse_stmt(&tokens[close_parenthesis + 1..])?;
+    let code_node = code_node.to_code();
 
     Ok((
         Node::While(condition_node.to_box(), code_node.to_box()),
@@ -246,6 +258,7 @@ fn parse_do_statement(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
     assert_eq_or!(tokens[0].token, Token::Do);
 
     let (code_node, code_consumed) = parse_stmt(&tokens[1..])?;
+    let code_node = code_node.to_code();
 
     assert_eq_or!(tokens[code_consumed + 1].token, Token::Until);
     let semilicon_idx = find_free_token(&tokens[code_consumed + 2..], &Token::Semilicon, 0)
@@ -408,7 +421,7 @@ fn parse_for_loop(tokens: &[TokenStruct]) -> Result<(Node, usize), Error> {
     let close_curly = find_pair_container(tokens, close_parenthesis + 1)
         .expect("COULDNT FIND PAIR CURLY WHEN PARSING FOR LOOP");
 
-    let code_node = parse(&tokens[close_parenthesis + 2..close_curly])?;
+    let code_node = parse(&tokens[close_parenthesis + 2..close_curly])?.to_code();
 
     Ok((
         Node::For(

@@ -88,6 +88,19 @@ pub fn get_avaible_tokens_for_expr(tokens: &[TokenStruct]) -> usize {
                         _ => {}
                     }
                 }
+                match next {
+                    Token::Equals
+                    | Token::ModBy
+                    | Token::IncrementBy
+                    | Token::DecrementBy
+                    | Token::MultiplyBy
+                    | Token::DivideBy
+                    | Token::Semilicon => {
+                        numb += 1;
+                        break;
+                    }
+                    _ => {}
+                }
             }
         }
 
@@ -225,7 +238,6 @@ pub fn parse_expr_components(
 }
 
 pub fn parse_component(component: &[TokenStruct]) -> Result<Node, Error> {
-    dbg!(&component);
     let first = component.first().unwrap();
     let last = component.last().unwrap();
     if component.len() == 1 {

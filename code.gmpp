@@ -1,3 +1,2 @@
-tokenize = function() {
-
-    }
+hsp = lengthdir_x(spd, dir);
+vsp = 2;

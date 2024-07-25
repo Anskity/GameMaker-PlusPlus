@@ -158,7 +158,7 @@ pub fn split_tokens(
             continue;
         }
         if tk.token == separator || i == tokens.len() - 1 {
-            if i == last_ptr {
+            if i == last_ptr && tk.token == separator {
                 sorted_tokens.push(&[]);
                 last_ptr = i + 1;
             } else {
